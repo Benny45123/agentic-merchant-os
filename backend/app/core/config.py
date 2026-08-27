@@ -49,9 +49,17 @@ class Settings(BaseSettings):
         default=None,
         description="Groq API Key"
     )
+    GROQ_MODEL: str = Field(
+        default="qwen/qwen3.8-27b",
+        description="Groq Model (e.g. qwen/qwen3.8-27b, llama-3.3-70b-versatile, llama-3.1-8b-instant)"
+    )
     OPENROUTER_API_KEY: Optional[str] = Field(
         default=None,
         description="OpenRouter API Key"
+    )
+    OPENROUTER_MODEL: str = Field(
+        default="meta-llama/llama-3.3-70b-instruct:free",
+        description="OpenRouter Model (e.g. meta-llama/llama-3.3-70b-instruct:free, deepseek/deepseek-r1:free, qwen/qwen-2.5-72b-instruct:free)"
     )
 
     # Auth & Security
