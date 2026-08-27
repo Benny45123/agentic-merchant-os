@@ -50,7 +50,11 @@ async def intent_router_node(state: CommerceGraphState, session: AsyncSession = 
         return {"action": "rollback"}
 
     # 2. Checkout Intent
-    if any(kw in msg_lower for kw in ["checkout", "submit", "pay now", "place order", "complete purchase"]):
+    if any(kw in msg_lower for kw in [
+        "checkout", "check out", "proceed to check out", "proceed to checkout",
+        "submit", "pay now", "place order", "complete purchase", "complete my order",
+        "do that for me", "buy now", "pay for this"
+    ]):
         return {"action": "checkout"}
 
     # 3. Clear Intent

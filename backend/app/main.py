@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.dashboard import router as dashboard_router
+from app.api.uap_gateway import router as uap_router
 from app.campaign.router import router as campaign_router
 from app.catalog.router import router as catalog_router
 from app.commerce_agent.router import router as agent_router
@@ -27,6 +28,7 @@ app.add_middleware(
 )
 
 # Mount all domain routers
+app.include_router(uap_router)
 app.include_router(catalog_router)
 app.include_router(agent_router)
 app.include_router(mandate_router)
