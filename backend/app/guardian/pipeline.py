@@ -304,12 +304,12 @@ async def evaluate_transaction_intent(
     await session.flush()
 
     # --------------------------------------------------------------------------
-    # 7. Razorpay Order Creation (ONLY IF APPROVE)
+    # 7. Razorpay Order Creation (for APPROVE or REQUIRE_CONFIRMATION)
     # --------------------------------------------------------------------------
     razorpay_order_payload = None
     created_order_id = None
 
-    if overall_decision == DecisionType.APPROVE and final_verified_total is not None:
+    if overall_decision in (DecisionType.APPROVE, DecisionType.REQUIRE_CONFIRMATION) and final_verified_total is not None:
         adapter = get_razorpay_adapter()
         rzp_order = adapter.create_order(
             amount=final_verified_total,
@@ -375,6 +375,23 @@ async def evaluate_transaction_intent(
         session=session,
     )
 
+    # --------------------------------------------------------------------------
+    # 9. Human-in-the-Loop Escalation Notification (for High-Value or Price Drift)
+    # --------------------------------------------------------------------------
+    high_value_notif_payload = None
+    if overall_decision == DecisionType.REQUIRE_CONFIRMATION and final_verified_total is not None:
+        from app.notifications.service import dispatch_high_value_escalation_sms
+        phone = "+91 98765 43210"
+        items_summary_str = ", ".join(f"{ri.qty}x {ri.sku}" for ri in resolved_items)
+        high_value_notif_payload = await dispatch_high_value_escalation_sms(
+            phone_number=phone,
+            buyer_id=intent_req.buyer_id,
+            order_total=final_verified_total,
+            items_summary=items_summary_str,
+            decision_id=decision_record.decision_id,
+            receipt_id=receipt.receipt_id,
+        )
+
     await session.commit()
 
     return GuardianDecisionResponse(
@@ -386,6 +403,7 @@ async def evaluate_transaction_intent(
         final_verified_total=final_total_output,
         receipt_id=receipt.receipt_id,
         razorpay_order=razorpay_order_payload,
+        high_value_notification=high_value_notif_payload,
     )
 
 

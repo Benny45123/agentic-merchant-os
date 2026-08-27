@@ -5,11 +5,14 @@ import Link from "next/link";
 import {
   CartItem,
   CheckoutResponse,
-  GuardianCheck,
   Recommendation,
   checkoutCart,
   sendChatMessage,
   verifyPayment,
+  getBuyerProfile,
+  sendOtp,
+  verifyOtp,
+  BuyerContactProfile,
 } from "@/lib/api";
 
 interface Message {
@@ -38,7 +41,50 @@ export default function BuyerChatPage() {
   const [checkoutData, setCheckoutData] = useState<CheckoutResponse | null>(null);
   const [checkingOut, setCheckingOut] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const startVoiceInput = () => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice input is not supported in this browser. Please use Chrome, Edge, or Safari.");
+      return;
+    }
+
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-IN";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setInput(transcript);
+          handleSend(transcript);
+        }
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn("Speech recognition error:", event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+    } catch (err: any) {
+      console.error("Voice recognition failed to start:", err);
+      setIsListening(false);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -61,6 +107,20 @@ export default function BuyerChatPage() {
       ]);
       setCart(res.cart);
       setRecommendations(res.recommendations || []);
+
+      // Auto-trigger Guardian checkout evaluation if user requested checkout
+      const lower = text.toLowerCase();
+      if (
+        res.cart.items.length > 0 &&
+        (lower.includes("checkout") ||
+          lower.includes("check out") ||
+          lower.includes("pay now") ||
+          lower.includes("proceed to") ||
+          lower.includes("complete purchase") ||
+          lower.includes("do that for me"))
+      ) {
+        handleCheckout();
+      }
     } catch (err: any) {
       setMessages((prev) => [
         ...prev,
@@ -91,8 +151,13 @@ export default function BuyerChatPage() {
   };
 
   const handleOpenRazorpay = async () => {
-    if (!checkoutData?.razorpay_order) return;
-    const order = checkoutData.razorpay_order;
+    if (!checkoutData) return;
+    const order = checkoutData.razorpay_order || {
+      order_id: checkoutData.decision.razorpay_order_id || `order_sim_${checkoutData.decision.receipt_id.substring(0, 10)}`,
+      amount: checkoutData.decision.final_verified_total || cart.subtotal,
+      currency: "INR",
+      key_id: "rzp_test_placeholder",
+    };
 
     // Check if Razorpay JS SDK is loaded and real test key is configured
     if (
@@ -114,18 +179,29 @@ export default function BuyerChatPage() {
               response.razorpay_payment_id,
               response.razorpay_signature
             );
-            setPaymentSuccess(checkoutData.decision.receipt_id);
+            const receiptId = checkoutData.decision.receipt_id;
+            setPaymentSuccess(receiptId);
+            setCart({ items: [], subtotal: 0 });
+            setCheckoutData(null);
+            setMessages((prev) => [
+              ...prev,
+              {
+                id: `paid_${Date.now()}`,
+                sender: "agent",
+                text: `🎉 **Payment Verified & Authorized!** Razorpay payment (\`${response.razorpay_payment_id}\`) captured. Your cart is now complete and reset.`,
+              },
+            ]);
           } catch (err: any) {
             alert(`Payment verification error: ${err.message}`);
           }
         },
         prefill: {
-          name: "Demo Buyer",
-          email: "buyer@example.com",
-          contact: "9876543210",
+          name: "Alex Johnson",
+          email: "alex.johnson@example.com",
+          contact: "9999999999",
         },
         theme: {
-          color: "#4F46E5",
+          color: "#4f46e5",
         },
         modal: {
           ondismiss: function () {
@@ -153,7 +229,18 @@ export default function BuyerChatPage() {
         `pay_sim_${order.order_id.substring(10)}`,
         "mock_signature_test"
       );
-      setPaymentSuccess(checkoutData.decision.receipt_id);
+      const receiptId = checkoutData.decision.receipt_id;
+      setPaymentSuccess(receiptId);
+      setCart({ items: [], subtotal: 0 });
+      setCheckoutData(null);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `paid_${Date.now()}`,
+          sender: "agent",
+          text: `🎉 **Payment Verified & Authorized!** Test payment captured for order \`${order.order_id}\`. Your cart is now complete and reset.`,
+        },
+      ]);
     } catch (err: any) {
       alert(`Payment verification error: ${err.message}`);
     }
@@ -166,9 +253,9 @@ export default function BuyerChatPage() {
         <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-semibold text-slate-800 text-sm">AeroSound AI Assistant</span>
+            <span className="font-semibold text-slate-800 text-sm">AeroSound AI Shopping Assistant</span>
           </div>
-          <span className="text-xs text-slate-500 font-mono">Session: {sessionId}</span>
+          <span className="text-xs text-slate-400 font-mono">Session: {sessionId}</span>
         </div>
 
         {/* Messages */}
@@ -214,9 +301,28 @@ export default function BuyerChatPage() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask for products, add to cart (e.g. 'Add HP-001 headphones')..."
+              placeholder="Ask for products, voice search (e.g. 'Add HP-001 headphones')..."
               className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
+            <button
+              type="button"
+              onClick={startVoiceInput}
+              className={`px-3.5 py-2.5 rounded-xl border font-semibold text-sm transition-all flex items-center justify-center gap-1.5 ${
+                isListening
+                  ? "bg-rose-500 text-white border-rose-600 animate-pulse shadow-md shadow-rose-200"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300"
+              }`}
+              title={isListening ? "Listening..." : "Click to speak"}
+            >
+              {isListening ? (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+                  <span>Listening...</span>
+                </>
+              ) : (
+                <span>🎙️</span>
+              )}
+            </button>
             <button
               type="submit"
               disabled={loading || !input.trim()}
@@ -355,6 +461,29 @@ export default function BuyerChatPage() {
                     className="w-full py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold transition-colors shadow flex items-center justify-center gap-2 text-xs"
                   >
                     💳 Open Razorpay Checkout (₹{((checkoutData.decision.final_verified_total || 0) / 100).toFixed(2)})
+                  </button>
+                </div>
+              )}
+
+              {/* High-Value Human-in-the-Loop Confirmation Card */}
+              {checkoutData.decision.decision === "REQUIRE_CONFIRMATION" && !paymentSuccess && (
+                <div className="p-3.5 rounded-xl bg-amber-950/40 border border-amber-500/30 text-amber-200 space-y-2 mt-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs flex items-center gap-1.5 text-amber-300">
+                      <span>⚠️</span> Explicit Confirmation Required
+                    </span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-mono">
+                      High-Value Gate
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                    Order total (<strong>₹{((checkoutData.decision.final_verified_total || cart.subtotal) / 100).toFixed(2)}</strong>) exceeds the autonomous threshold of ₹5,000.00. Please confirm to proceed with payment.
+                  </p>
+                  <button
+                    onClick={handleOpenRazorpay}
+                    className="w-full py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-colors shadow text-xs flex items-center justify-center gap-1.5"
+                  >
+                    <span>👤 Confirm & Pay via Razorpay (₹{((checkoutData.decision.final_verified_total || cart.subtotal) / 100).toFixed(2)})</span>
                   </button>
                 </div>
               )}

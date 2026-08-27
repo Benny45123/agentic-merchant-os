@@ -48,6 +48,7 @@ class GuardianDecisionResponse(BaseModel):
     final_verified_total: Optional[int] = None
     receipt_id: str
     razorpay_order: Optional[RazorpayOrderSchema] = None
+    high_value_notification: Optional[Dict[str, Any]] = None
 
 
 class CampaignProposalRequest(BaseModel):
