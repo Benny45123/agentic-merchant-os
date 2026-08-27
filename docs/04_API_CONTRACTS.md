@@ -286,8 +286,124 @@ All fields computed via SQL aggregation over `Order`/`Receipt` tables at request
 
 ---
 
+## 10. Universal Agent Protocol (UAP) & Machine Purchase Gateway
+
+### `GET /.well-known/agent.json`
+
+Public machine-readable manifest declaring store capabilities and MCP tools for external AI agents.
+Response 200:
+
+```json
+{
+  "protocol": "UAP-1.0",
+  "name": "AeroSound Official Store",
+  "merchant_id": "m_001",
+  "catalog_version": 17,
+  "supported_payment_rails": ["razorpay_test_v1"],
+  "tools": [
+    {
+      "name": "search_catalog",
+      "description": "Search products with real-time stock and prices",
+      "endpoint": "/catalog/products"
+    },
+    {
+      "name": "submit_machine_purchase",
+      "description": "Submit a signed mandate and transaction intent for Guardian evaluation",
+      "endpoint": "/agent/v1/machine-purchase"
+    }
+  ]
+}
+```
+
+### `POST /agent/v1/machine-purchase`
+
+Headless A2A purchase endpoint for external AI buyers (ChatGPT, Claude, AutoGPT).
+Request:
+
+```json
+{
+  "buyer_agent_id": "agent_procure_007",
+  "buyer_mandate": {
+    "buyer_id": "b_001",
+    "max_amount": 1000000,
+    "max_quantity_per_item": 5,
+    "currency": "INR"
+  },
+  "purchase_items": [
+    {
+      "sku": "HP-001",
+      "qty": 1,
+      "observed_price": 449900,
+      "catalog_version": 17
+    }
+  ],
+  "agent_callback_url": "https://buyer-agent.internal/webhook"
+}
+```
+
+Response 200:
+
+```json
+{
+  "status": "APPROVED",
+  "guardian_decision": "APPROVE",
+  "receipt_id": "uuid-string",
+  "final_verified_total": 449900,
+  "razorpay_order_id": "order_test_xxxx",
+  "payment_link": "https://api.razorpay.com/v1/checkout/hosted?order_id=order_test_xxxx",
+  "replay_hash": "sha256_hash_of_decision_receipt"
+}
+```
+
+---
+
+## 11. Dynamic Margin Bundling
+
+### `POST /catalog/bundles/margin-check`
+
+Validates multi-item bundle discount against merchant minimum gross margin.
+Request: `{ "parent_sku": "HP-001", "addon_sku": "CASE-HP", "discount_pct": 30 }`
+Response 200: `{ "approved": true, "bundle_price": 519800, "projected_margin_pct": 34.6, "min_margin_pct": 15.0 }`
+
+---
+
+## 12. Campaign A/B Strategy Simulator
+
+### `POST /campaign/simulate-ab`
+
+Generates dual competing marketing strategies with Guardian pre-validation.
+Request: `{ "merchant_id": "m_001", "objective": "string" }`
+Response 200:
+
+```json
+{
+  "objective": "string",
+  "strategy_a": {
+    "name": "Volume Catalyst (10% Off)",
+    "discount_pct": 10,
+    "eligible_skus": ["HP-001"],
+    "projected_revenue_lift_pct": 28,
+    "projected_gross_margin_pct": 21.5,
+    "guardian_pre_check": "APPROVE"
+  },
+  "strategy_b": {
+    "name": "Margin Protector (Bundle Deal)",
+    "discount_pct": 50,
+    "bundle_addon_sku": "CASE-HP",
+    "eligible_skus": ["HP-001"],
+    "projected_revenue_lift_pct": 36,
+    "projected_gross_margin_pct": 29.8,
+    "guardian_pre_check": "APPROVE"
+  },
+  "ai_recommendation": "Strategy B preserves 8.3% higher profit margin."
+}
+```
+
+---
+
 ## Contract Changelog
 
-| Date  | Change          | Reason |
-| ----- | --------------- | ------ |
-| Day 0 | Initial version | —     |
+| Date  | Change | Reason |
+| ----- | ------ | ------ |
+| Day 0 | Initial version | Baseline contracts |
+| Day 2 | Added UAP Machine Gateway, Bundle Margin, Campaign A/B Simulator | Track 01 A2A Commerce & Revenue Extensions |

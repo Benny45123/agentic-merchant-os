@@ -122,3 +122,18 @@ All secrets (Razorpay key/secret, LLM API key, JWT signing key) live in `.env`, 
 ## 10. Why Not Microservices
 
 A single FastAPI service with strict internal module boundaries gives the same "clear ownership per Gemini CLI agent" benefit as microservices (each agent owns a package + its router + its tests) without network latency, service discovery, or deployment complexity that a solo 10-day build cannot absorb. Module boundaries are enforced by directory ownership (`17_MULTI_AGENT_WORKFLOW.md`) and the import-graph lint, not by network isolation.
+
+## 11. Agent-to-Agent Protocol & Revenue Optimization Extensions (Track 01 Specialization)
+
+To lead the NPCI UAP and global protocol race (ACP, AP2, x402), Agentic Merchant OS includes 5 dedicated extensions:
+
+1. **UAP / ACP Machine Gateway (`/.well-known/agent.json` & `POST /agent/v1/machine-purchase`):**
+   Exposes a standardized Model Context Protocol (MCP) manifest and a headless A2A purchase endpoint. External AI buyer agents (ChatGPT, Claude, autonomous bots) can programmatically discover catalog state, pass signed spending mandates, receive Guardian Decision Receipts, and execute Razorpay test settlement with zero human UI.
+2. **Dynamic Margin-Optimized Bundling Engine (`app/commerce_agent/upsell.py`):**
+   Proactively computes gross margin headroom between parent products and accessories/warranties. Generates dynamic margin-safe bundles that maximize Average Order Value (AOV) while strictly preserving `policy.minimum_margin_pct`.
+3. **Autonomous Campaign A/B Strategy Simulator (`app/campaign/simulator.py`):**
+   Allows merchants to simulate dual competing marketing strategies (Strategy A: Volume Price Cut vs Strategy B: High-Margin Bundle Incentive) with Guardian pre-validation and autonomous Flash Budget Guard limits.
+4. **Voice-Activated In-App Checkout (`frontend/src/app/(buyer)/chat`):**
+   Integrates browser-native Web Speech API for hands-free natural voice shopping, streaming transcript generation, and voice-triggered Guardian checkout.
+5. **Visual Mandate & Margin Boundary Gauges (`/receipts/[id]` & `/dashboard`):**
+   Renders real-time visual progress meters for Buyer Mandate Spending Caps, Merchant Gross Margins, and Order Quantity limits, making every financial action mathematically transparent.

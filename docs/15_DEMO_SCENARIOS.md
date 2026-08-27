@@ -39,6 +39,18 @@ Switch to merchant view. Type objective: "Increase sales of headphones this week
 Run 1-2 quick buyer purchases under the new campaign offer (can be scripted/fast-forwarded). Show `budget_spent` incrementing on the campaign status view, and the dashboard's `campaign_revenue`/`total_revenue` numbers changing — pulled live from the Order table.
 *Show:* if time allows, show the budget-exhaustion auto-pause by pre-setting a tiny remaining budget for one final purchase.
 
+**Beat 9 — Universal Agent Protocol (UAP) A2A Machine Purchase (30s)**
+External AI agent queries `GET /.well-known/agent.json` to discover the MCP tool manifest, then calls `POST /agent/v1/machine-purchase` with a signed mandate.
+*Show:* The Guardian authorizes the order, generates a pre-authorized Razorpay order, and produces an immutable Decision Receipt with zero human UI interaction.
+
+**Beat 10 — Voice-Activated Conversational Checkout (30s)**
+Buyer clicks the microphone `🎙️` button in the chat UI and speaks: *"Add the AeroSound headphones and 1-year warranty"*.
+*Show:* Live speech-to-text transcript generation, real-time cart update, and 1-click Guardian checkout.
+
+**Beat 11 — Campaign A/B Strategy Optimizer & Safety Gauges (30s)**
+Merchant inputs an objective to simulate Strategy A (10% Price Cut) vs Strategy B (High-Margin Bundle Deal). Merchant views the live **Safety Boundary Gauges** on the Decision Receipt viewer showing spending cap and margin preservation percentages.
+*Show:* Explainable, bounded, and gated financial safety visualized in real-time.
+
 ## 2. What Judges Should Walk Away Believing
 
 1. Every rupee movement went through one deterministic gate.
