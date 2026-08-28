@@ -129,17 +129,45 @@ async def build_checkout_intent(
 ) -> CheckoutIntentResponse:
     """
     Builds a TransactionIntent from CartItem state (pure code) and forwards to Guardian.
+    Automatically discovers active promotions from Campaign & Offer tables.
     """
     cart = get_or_create_cart(session_id)
     if not cart.items:
         raise ValueError("Cannot checkout with an empty cart")
 
-    # Build TransactionIntentRequest using pure code
+    # Discover active promotional campaigns for eligible cart items
+    from sqlalchemy import select
+    from app.models.campaign import Campaign
+    from app.core.enums import CampaignStatus
+
+    discount_pct = 0
+    camp_stmt = select(Campaign).where(
+        Campaign.merchant_id == merchant_id,
+        Campaign.status == CampaignStatus.ACTIVE,
+    )
+    camp_res = await session.execute(camp_stmt)
+    active_campaigns = list(camp_res.scalars().all())
+
+    for camp in active_campaigns:
+        skus = camp.eligible_skus
+        if isinstance(skus, str):
+            import json
+            try:
+                skus = json.loads(skus)
+            except Exception:
+                skus = [skus]
+        skus = skus or []
+        for it in cart.items:
+            if it.sku in skus:
+                discount_pct = max(discount_pct, camp.discount_pct)
+                break
+
+    # Build TransactionIntentRequest using pure code with promotional discount
     intent_req = build_transaction_intent(
         buyer_id=buyer_id,
         merchant_id=merchant_id,
         cart_items=cart.items,
-        requested_discount_pct=0,
+        requested_discount_pct=discount_pct,
     )
 
     # Forward to deterministic Guardian evaluation

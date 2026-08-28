@@ -87,6 +87,57 @@ TOOLS = [
         }
     },
     {
+        "name": "submit_commerce_rfq",
+        "description": "Submit a Request for Quote (RFQ) to negotiate custom unit prices or bulk volume deals. Returns bilateral counter-offers within merchant gross margin constraints.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "sku": {
+                    "type": "string",
+                    "description": "Product SKU (e.g. 'HP-001')"
+                },
+                "quantity": {
+                    "type": "integer",
+                    "default": 3,
+                    "description": "Quantity requested"
+                },
+                "target_unit_price_paise": {
+                    "type": "integer",
+                    "description": "Buyer target price per unit in paise (e.g. 410000 = ₹4,100.00)"
+                },
+                "buyer_agent_id": {
+                    "type": "string",
+                    "default": "ai_buyer_agent_procure_42",
+                    "description": "Identifier of the buying bot"
+                }
+            },
+            "required": ["sku", "target_unit_price_paise"]
+        }
+    },
+    {
+        "name": "accept_negotiation_offer",
+        "description": "Accept an offer from a previous RFQ negotiation session (e.g. OPT_DIRECT_PRICE or OPT_BUNDLE_SWEETENER) to finalize Guardian authorization and Razorpay order.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "session_id": {
+                    "type": "string",
+                    "description": "Negotiation session ID returned by submit_commerce_rfq"
+                },
+                "selected_option_id": {
+                    "type": "string",
+                    "description": "Chosen option ID (e.g. 'OPT_DIRECT_PRICE' or 'OPT_BUNDLE_SWEETENER')"
+                },
+                "buyer_agent_id": {
+                    "type": "string",
+                    "default": "ai_buyer_agent_procure_42",
+                    "description": "Identifier of the buying bot"
+                }
+            },
+            "required": ["session_id", "selected_option_id"]
+        }
+    },
+    {
         "name": "get_decision_receipt",
         "description": "Retrieve an immutable Decision Receipt and cryptographic audit trail for a previous transaction.",
         "inputSchema": {
@@ -195,6 +246,94 @@ def handle_tool_call(name, args):
                         )
                     return {"content": [{"type": "text", "text": out}]}
                 return {"isError": True, "content": [{"type": "text", "text": f"Purchase Failed: {res.text}"}]}
+
+            elif name == "submit_commerce_rfq":
+                sku = args["sku"]
+                qty = args.get("quantity", 3)
+                target_price = args["target_unit_price_paise"]
+                buyer_agent = args.get("buyer_agent_id", "ai_buyer_agent_procure_42")
+
+                rfq_payload = {
+                    "buyer_agent_id": buyer_agent,
+                    "merchant_id": "m_001",
+                    "buyer_mandate": {
+                        "buyer_id": "b_001",
+                        "max_amount": 2000000,
+                        "max_quantity_per_item": 10,
+                        "currency": "INR",
+                        "signature": "sig_mcp_rfq_mandate",
+                    },
+                    "items": [
+                        {
+                            "sku": sku,
+                            "qty": qty,
+                            "target_unit_price_paise": target_price,
+                        }
+                    ],
+                }
+
+                res = client.post("/commerce/rfq", json=rfq_payload)
+                if res.status_code == 200:
+                    data = res.json()
+                    out = (
+                        f"🤝 BILATERAL RFQ NEGOTIATION STATUS: {data['status']}\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"📋 Session ID: {data['session_id']}\n"
+                        f"🏷️ Catalog Total: ₹{data['catalog_total_paise']/100:.2f} | Buyer Proposed: ₹{data['buyer_target_total_paise']/100:.2f}\n"
+                        f"🛡️ Margin Floor: {data['minimum_margin_floor_pct']}%\n"
+                        f"📜 Rationale: {data['reason']}\n"
+                        f"💡 AI Pricing Notes: {data['ai_pricing_agent_notes']}\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🎁 PROPOSED COUNTER-OFFERS:\n"
+                    )
+                    for i, opt in enumerate(data.get("counter_offers", []), 1):
+                        out += (
+                            f"\n  [{i}] {opt['title']} ({opt['option_id']})\n"
+                            f"      • Total: ₹{opt['total_amount_paise']/100:.2f} ({opt['discount_pct']}% discount)\n"
+                            f"      • Projected Margin: {opt['projected_gross_margin_pct']}% (Floor: >=15% ✓)\n"
+                            f"      • Merchant Profit Lift: +₹{opt['merchant_profit_lift_paise']/100:.2f}\n"
+                            f"      • Details: {opt['description']}\n"
+                        )
+                    out += (
+                        f"\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"👉 To finalize, call 'accept_negotiation_offer' with session_id='{data['session_id']}' and selected_option_id."
+                    )
+                    return {"content": [{"type": "text", "text": out}]}
+                return {"isError": True, "content": [{"type": "text", "text": f"RFQ Failed: {res.text}"}]}
+
+            elif name == "accept_negotiation_offer":
+                session_id = args["session_id"]
+                option_id = args["selected_option_id"]
+                buyer_agent = args.get("buyer_agent_id", "ai_buyer_agent_procure_42")
+
+                accept_payload = {
+                    "session_id": session_id,
+                    "buyer_agent_id": buyer_agent,
+                    "merchant_id": "m_001",
+                    "selected_option_id": option_id,
+                    "buyer_signature": "sig_mcp_signed_contract",
+                }
+
+                res = client.post("/commerce/accept", json=accept_payload)
+                if res.status_code == 200:
+                    data = res.json()
+                    out = (
+                        f"🎉 NEGOTIATION AGREEMENT SETTLED & AUTHORIZED!\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🛡️ Guardian Decision: {data['guardian_decision']}\n"
+                        f"💰 Final Verified Total: ₹{data['final_verified_total_paise']/100:.2f}\n"
+                        f"📈 Merchant Gross Margin Achieved: {data['merchant_margin_achieved_pct']}%\n"
+                        f"🧾 Decision Receipt ID: {data['receipt_id']}\n"
+                        f"💳 Razorpay Order ID: {data.get('razorpay_order_id', 'None')}\n"
+                        f"🔒 Cryptographic Replay Hash: {data['replay_hash']}\n"
+                        f"📜 Reason: {data['reason']}\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"📦 Negotiated Contract Items:\n"
+                    )
+                    for item in data.get("negotiated_items", []):
+                        out += f"  • {item['qty']}x {item['sku']} @ {item['price_inr']}/unit\n"
+                    return {"content": [{"type": "text", "text": out}]}
+                return {"isError": True, "content": [{"type": "text", "text": f"Settlement Failed: {res.text}"}]}
 
             elif name == "check_bundle_margin":
                 res = client.post("/catalog/bundles/margin-check", json=args)

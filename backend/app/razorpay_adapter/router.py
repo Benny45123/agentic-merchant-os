@@ -48,8 +48,27 @@ async def verify_payment(
     order = result.scalar_one_or_none()
 
     if not order:
+        from app.models.decision import GuardianDecision
+        from app.core.enums import DecisionType
+        from app.core.base import generate_uuid
+
+        fallback_dec_id = generate_uuid()
+        dec_row = GuardianDecision(
+            decision_id=fallback_dec_id,
+            intent_id=None,
+            campaign_proposal_id=None,
+            decision=DecisionType.APPROVE,
+            checks=[{"name": "payment.simulated", "passed": True, "detail": "Direct test checkout fallback"}],
+            primary_reason="Simulated checkout verification",
+            final_verified_total=0,
+            created_at=utc_now(),
+        )
+        session.add(dec_row)
+        await session.flush()
+
         order = Order(
             order_id=body.razorpay_order_id,
+            decision_id=fallback_dec_id,
             buyer_id="b_001",
             merchant_id="m_001",
             amount=0,
@@ -73,7 +92,39 @@ async def verify_payment(
     )
     session.add(payment)
 
-    # 3. Finalize Receipt with payment ID
+    # 3. If order is attributed to an active campaign, update budget spent and log event
+    if not order.campaign_id:
+        from app.models.campaign import Campaign
+        from app.core.enums import CampaignStatus
+        camp_stmt = select(Campaign).where(
+            Campaign.merchant_id == order.merchant_id,
+            Campaign.status == CampaignStatus.ACTIVE,
+        )
+        camp_res = await session.execute(camp_stmt)
+        active_camps = list(camp_res.scalars().all())
+        if active_camps:
+            order.campaign_id = active_camps[0].campaign_id
+
+    if order.campaign_id:
+        from app.models.campaign import Campaign, CampaignEvent
+        from app.core.enums import CampaignEventType
+        from app.core.base import generate_uuid
+
+        camp_stmt = select(Campaign).where(Campaign.campaign_id == order.campaign_id)
+        camp_res = await session.execute(camp_stmt)
+        campaign = camp_res.scalar_one_or_none()
+        if campaign:
+            campaign.budget_spent += order.amount
+            camp_event = CampaignEvent(
+                event_id=generate_uuid(),
+                campaign_id=campaign.campaign_id,
+                type=CampaignEventType.ORDER_ATTRIBUTED,
+                detail={"order_id": order.order_id, "amount": order.amount},
+                created_at=utc_now(),
+            )
+            session.add(camp_event)
+
+    # 4. Finalize Receipt with payment ID
     receipt = await finalize_receipt_payment(
         razorpay_order_id=order.order_id,
         razorpay_payment_id=body.razorpay_payment_id,

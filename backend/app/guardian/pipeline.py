@@ -310,6 +310,32 @@ async def evaluate_transaction_intent(
     created_order_id = None
 
     if overall_decision in (DecisionType.APPROVE, DecisionType.REQUIRE_CONFIRMATION) and final_verified_total is not None:
+        # Match active campaign for revenue attribution
+        from app.models.campaign import Campaign
+        from app.core.enums import CampaignStatus
+
+        matched_campaign_id = None
+        camp_stmt = select(Campaign).where(
+            Campaign.merchant_id == intent_req.merchant_id,
+            Campaign.status == CampaignStatus.ACTIVE,
+        )
+        camp_res = await session.execute(camp_stmt)
+        for camp in camp_res.scalars().all():
+            skus = camp.eligible_skus
+            if isinstance(skus, str):
+                import json
+                try:
+                    skus = json.loads(skus)
+                except Exception:
+                    skus = [skus]
+            skus = skus or []
+            for ri in resolved_items:
+                if ri.sku in skus:
+                    matched_campaign_id = camp.campaign_id
+                    break
+            if matched_campaign_id:
+                break
+
         adapter = get_razorpay_adapter()
         rzp_order = adapter.create_order(
             amount=final_verified_total,
@@ -324,7 +350,7 @@ async def evaluate_transaction_intent(
             key_id=rzp_order.key_id,
         )
 
-        # Mirror in Order table
+        # Mirror in Order table with campaign attribution
         order_row = Order(
             order_id=rzp_order.order_id,
             decision_id=decision_id,
@@ -333,7 +359,7 @@ async def evaluate_transaction_intent(
             amount=final_verified_total,
             currency="INR",
             status=OrderStatus.CREATED,
-            campaign_id=None,
+            campaign_id=matched_campaign_id,
             created_at=utc_now(),
         )
         session.add(order_row)
