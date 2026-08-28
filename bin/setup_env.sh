@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Agentic Merchant OS - Setup Script (uv prioritized, fallback to manual venv)
-# Strict Python 3.12 / 3.11 Enforced + Auto JWT Secret Key Generation
-# + Step-by-Step API Provider Key Assistant (Gemini, Groq, OpenRouter, Razorpay)
+# Agentic Merchant OS - Universal Setup Script (Pure UV Package Manager)
+# Auto-installs 'uv' if missing + Python 3.12 + Auto JWT Secret + API Setup Wizard
 # ==============================================================================
 set -e
 
@@ -10,9 +9,42 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "=================================================================="
-echo "🚀 Setting up Agentic Merchant OS on host system..."
+echo "🚀 Setting up Agentic Merchant OS (Pure UV Engine)"
 echo "📁 Repository Root: $REPO_ROOT"
 echo "=================================================================="
+
+# Ensure path includes standard local bin locations for uv
+export PATH="$HOME/.local/bin:$HOME/.cargo/bin:/usr/local/bin:$PATH"
+
+# ------------------------------------------------------------------------------
+# STEP 1: Auto-Install 'uv' if not present
+# ------------------------------------------------------------------------------
+if ! command -v uv >/dev/null 2>&1; then
+    echo ""
+    echo "⚡ 'uv' package manager not found on system."
+    echo "📦 Auto-installing standalone Astral 'uv' binary..."
+    if command -v curl >/dev/null 2>&1; then
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+    elif command -v wget >/dev/null 2>&1; then
+        wget -qO- https://astral.sh/uv/install.sh | sh
+    else
+        echo "❌ Error: Neither curl nor wget was found. Please install 'uv' from https://docs.astral.sh/uv/"
+        exit 1
+    fi
+
+    # Re-export PATH with newly installed uv location
+    export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+    if [ -f "$HOME/.cargo/env" ]; then
+        source "$HOME/.cargo/env"
+    fi
+fi
+
+if command -v uv >/dev/null 2>&1; then
+    echo "✅ Using 'uv' version: $(uv --version)"
+else
+    echo "❌ Error: Failed to initialize 'uv'. Please check your PATH or install manually from https://astral.sh/uv"
+    exit 1
+fi
 
 cd "$REPO_ROOT/backend"
 
@@ -23,7 +55,7 @@ if [ ! -f ".env" ]; then
 fi
 
 # ------------------------------------------------------------------------------
-# Auto-Generate Secure JWT Signing Key (if placeholder or empty)
+# STEP 2: Auto-Generate Secure JWT Signing Key (if placeholder or empty)
 # ------------------------------------------------------------------------------
 CURRENT_JWT_KEY=$(grep "^JWT_SIGNING_KEY=" .env | cut -d '=' -f2- || true)
 if [ -z "$CURRENT_JWT_KEY" ] || [[ "$CURRENT_JWT_KEY" == *"change_this"* ]] || [[ "$CURRENT_JWT_KEY" == *"your_jwt"* ]] || [ ${#CURRENT_JWT_KEY} -lt 32 ]; then
@@ -31,7 +63,7 @@ if [ -z "$CURRENT_JWT_KEY" ] || [[ "$CURRENT_JWT_KEY" == *"change_this"* ]] || [
     if command -v openssl >/dev/null 2>&1; then
         RAND_KEY=$(openssl rand -hex 32)
     else
-        RAND_KEY=$(python3 -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || date +%s%N | sha256sum | head -c 64)
+        RAND_KEY=$(uv run python -c "import secrets; print(secrets.token_hex(32))" 2>/dev/null || date +%s%N | sha256sum | head -c 64)
     fi
 
     # Update .env
@@ -44,105 +76,45 @@ if [ -z "$CURRENT_JWT_KEY" ] || [[ "$CURRENT_JWT_KEY" == *"change_this"* ]] || [
 fi
 
 # ------------------------------------------------------------------------------
-# STEP 1: Attempt UV Setup First (Fast & Modern)
-# ------------------------------------------------------------------------------
-USE_UV=false
-
-if command -v uv >/dev/null 2>&1; then
-    echo "⚡ Found 'uv' package manager! Attempting setup with uv (Python 3.12/3.11)..."
-    
-    # Try Python 3.12 first, then 3.11
-    if uv venv .venv --python 3.12 2>/dev/null; then
-        echo "✅ uv created .venv with Python 3.12"
-        USE_UV=true
-    elif uv venv .venv --python 3.11 2>/dev/null; then
-        echo "✅ uv created .venv with Python 3.11"
-        USE_UV=true
-    else
-        echo "⚠️ uv could not locate Python 3.12 or 3.11 directly. Falling back to manual locator..."
-    fi
-
-    if [ "$USE_UV" = true ]; then
-        source .venv/bin/activate
-        echo "📦 Installing backend packages via uv pip..."
-        uv pip install -r requirements.txt
-    fi
-fi
-
-# ------------------------------------------------------------------------------
-# STEP 2: Fallback to Manual Python 3.12 / 3.11 Locator if uv was not used
-# ------------------------------------------------------------------------------
-if [ "$USE_UV" = false ]; then
-    echo "🔍 Using standard Python 3.12 / 3.11 locator..."
-
-    CANDIDATE_PATHS=(
-        "python3.12"
-        "python3.11"
-        "/opt/homebrew/bin/python3.12"
-        "/opt/homebrew/bin/python3.11"
-        "/usr/local/bin/python3.12"
-        "/usr/local/bin/python3.11"
-        "$HOME/.pyenv/shims/python3.12"
-        "$HOME/.pyenv/shims/python3.11"
-        "$HOME/.local/bin/python3.12"
-    )
-
-    PYTHON_BIN=""
-    for candidate in "${CANDIDATE_PATHS[@]}"; do
-        if command -v "$candidate" >/dev/null 2>&1; then
-            PY_VER=$("$candidate" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)
-            if [ "$PY_VER" = "3.12" ] || [ "$PY_VER" = "3.11" ]; then
-                PYTHON_BIN="$candidate"
-                echo "✅ Selected stable Python: $PYTHON_BIN (v$PY_VER)"
-                break
-            fi
-        fi
-    done
-
-    if [ -z "$PYTHON_BIN" ]; then
-        echo "❌ ERROR: Python 3.12 or 3.11 is required, but was not found!"
-        echo "   (Detected default python3 is incompatible or 3.14+)"
-        echo ""
-        echo "👉 If using uv, run: uv python install 3.12"
-        echo "   Or via Homebrew: brew install python@3.12"
-        echo ""
-        echo "   Then re-run: ./bin/setup_env.sh"
-        exit 1
-    fi
-
-    # Create venv manually
-    if [ -d ".venv" ]; then
-        VENV_PY_VER=$(.venv/bin/python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || echo "incompatible")
-        if [ "$VENV_PY_VER" != "3.12" ] && [ "$VENV_PY_VER" != "3.11" ]; then
-            echo "🔄 Recreating .venv (existing venv version was $VENV_PY_VER)..."
-            rm -rf .venv
-        fi
-    fi
-
-    if [ ! -d ".venv" ]; then
-        "$PYTHON_BIN" -m venv .venv
-        echo "✅ Created .venv using $PYTHON_BIN"
-    fi
-
-    source .venv/bin/activate
-    echo "📦 Installing backend packages via pip..."
-    pip install --upgrade pip
-    pip install -r requirements.txt
-fi
-
-# ------------------------------------------------------------------------------
-# STEP 3: Run Database Migrations & Idempotent Seed
+# STEP 3: Setup Isolated Python 3.12 Virtual Environment using UV
 # ------------------------------------------------------------------------------
 echo ""
-echo "🗄️ [3/5] Running database migrations and idempotent seed..."
+echo "🐍 [1/4] Configuring Python 3.12 environment via uv..."
+
+# Ensure Python 3.12 is fetched by uv automatically if not present
+echo "📦 Ensuring Python 3.12 toolchain via uv..."
+uv python install 3.12 || true
+
+# Create .venv if not already present
+if [ ! -d ".venv" ]; then
+    echo "🔨 Creating new .venv with Python 3.12..."
+    uv venv .venv --python 3.12
+else
+    echo "✅ Existing .venv detected, reusing environment..."
+fi
+
+# Activate virtualenv
+source .venv/bin/activate
+
+# Install backend dependencies via uv pip
+echo "⚡ Installing backend dependencies via uv pip..."
+uv pip install -r requirements.txt
+echo "✅ Backend dependencies successfully installed!"
+
+# ------------------------------------------------------------------------------
+# STEP 4: Run Database Migrations & Idempotent Seed
+# ------------------------------------------------------------------------------
+echo ""
+echo "🗄️ [2/4] Running database migrations and idempotent seed..."
 alembic upgrade head
 python -m app.seed
+echo "✅ Database initialized and seeded with products, merchant, and policies."
 
 # ------------------------------------------------------------------------------
-# STEP 4: Setup Frontend Dependencies
+# STEP 5: Setup Frontend Dependencies
 # ------------------------------------------------------------------------------
 echo ""
-echo "💻 [4/5] Setting up frontend dependencies..."
+echo "💻 [3/4] Setting up frontend dependencies..."
 cd "$REPO_ROOT/frontend"
 
 if [ ! -f ".env.local" ]; then
@@ -158,11 +130,11 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# STEP 5: Step-by-Step API Provider Setup & Credentials Assistant
+# STEP 6: Step-by-Step API Provider Setup & Credentials Assistant
 # ------------------------------------------------------------------------------
 echo ""
 echo "=================================================================="
-echo "🌐 [5/5] Step-by-Step API Provider Setup Wizard"
+echo "🌐 [4/4] Step-by-Step API Provider Setup Wizard"
 echo "=================================================================="
 echo "Configure your AI Model & Payment keys (or press Enter to keep defaults)."
 echo ""
@@ -191,7 +163,7 @@ set_env_key() {
 
 if [ -t 0 ]; then
     # --------------------------------------------------------------------------
-    # 5.1 Google Gemini API Key
+    # 6.1 Google Gemini API Key
     # --------------------------------------------------------------------------
     echo "------------------------------------------------------------------"
     echo "🌟 [1/4] Google Gemini Provider (Primary Model)"
@@ -210,7 +182,7 @@ if [ -t 0 ]; then
     echo ""
 
     # --------------------------------------------------------------------------
-    # 5.2 Groq Cloud API Key
+    # 6.2 Groq Cloud API Key
     # --------------------------------------------------------------------------
     echo "------------------------------------------------------------------"
     echo "⚡ [2/4] Groq Cloud Provider (Free Limits: qwen/qwen3.8-27b, llama-3.3-70b)"
@@ -234,7 +206,7 @@ if [ -t 0 ]; then
     echo ""
 
     # --------------------------------------------------------------------------
-    # 5.3 OpenRouter API Key
+    # 6.3 OpenRouter API Key
     # --------------------------------------------------------------------------
     echo "------------------------------------------------------------------"
     echo "🔀 [3/4] OpenRouter Provider (Free Community Models: Llama 3.3 70B, DeepSeek)"
@@ -258,7 +230,7 @@ if [ -t 0 ]; then
     echo ""
 
     # --------------------------------------------------------------------------
-    # 5.4 Razorpay Test Mode Setup & Credentials (With detailed guide)
+    # 6.4 Razorpay Test Mode Setup & Credentials
     # --------------------------------------------------------------------------
     echo "=================================================================="
     echo "💳 [4/4] Razorpay Test Mode Setup Guide"
@@ -296,7 +268,7 @@ fi
 
 echo ""
 echo "=================================================================="
-echo "🎉 SETUP COMPLETE! Environment configured successfully."
+echo "🎉 SETUP COMPLETE! Environment configured with pure 'uv' speed."
 echo "=================================================================="
 echo ""
 echo "👉 To start the Full Stack (Backend + Frontend):"
@@ -305,6 +277,6 @@ echo ""
 echo "👉 To run tests & architecture linter:"
 echo "   ./bin/test.sh"
 echo ""
-echo "👉 To run 4 automated end-to-end demo scenarios:"
+echo "👉 To run 6 automated end-to-end demo scenarios:"
 echo "   ./bin/run_scenarios.sh"
 echo "=================================================================="
