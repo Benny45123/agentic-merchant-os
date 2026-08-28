@@ -8,6 +8,7 @@ from app.catalog.router import router as catalog_router
 from app.commerce_agent.router import router as agent_router
 from app.guardian.router import router as guardian_router
 from app.mandate.router import router as mandate_router
+from app.negotiation.router import router as negotiation_router
 from app.policy.router import router as policy_router
 from app.razorpay_adapter.router import router as razorpay_router
 from app.receipts.router import router as receipts_router
@@ -28,6 +29,7 @@ app.add_middleware(
 )
 
 # Mount all domain routers
+app.include_router(negotiation_router)
 app.include_router(uap_router)
 app.include_router(catalog_router)
 app.include_router(agent_router)

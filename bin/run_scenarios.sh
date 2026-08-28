@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Run All 6 Automated End-to-End Demo Scenarios
+# Run All 7 Automated End-to-End Demo Scenarios
 # ==============================================================================
 set -e
 
@@ -8,7 +8,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "=================================================================="
-echo "🎬 Running 6 End-to-End Demo Scenarios (Including Autopay Failure Handling)"
+echo "🎬 Running 7 End-to-End Demo Scenarios (Including A2A Reverse Auction)"
 echo "=================================================================="
 
 cd "$REPO_ROOT/backend"

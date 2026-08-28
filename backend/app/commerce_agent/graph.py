@@ -153,12 +153,38 @@ async def cart_mutation_node(state: CommerceGraphState, session: AsyncSession = 
 
     if add_res.get("success"):
         name = add_res.get("name", sku)
-        reply = (
-            f"I've added {qty}x **{name}** (`{sku}`) to your cart! "
-            f"Your cart subtotal is now **₹{cart.subtotal/100:.2f}**."
-        )
         from app.commerce_agent.service import _session_last_sku
         _session_last_sku[state["session_id"]] = sku
+
+        # Check for active promotional campaigns on this SKU
+        from sqlalchemy import select
+        from app.models.campaign import Campaign
+        from app.core.enums import CampaignStatus
+
+        camp_discount_pct = 0
+        camp_stmt = select(Campaign).where(
+            Campaign.merchant_id == state["merchant_id"],
+            Campaign.status == CampaignStatus.ACTIVE,
+        )
+        camp_res = await session.execute(camp_stmt) if session else None
+        if camp_res:
+            for camp in camp_res.scalars().all():
+                if sku in (camp.eligible_skus or []):
+                    camp_discount_pct = max(camp_discount_pct, camp.discount_pct)
+
+        if camp_discount_pct > 0:
+            disc_subtotal = int(cart.subtotal * (1.0 - camp_discount_pct / 100.0))
+            reply = (
+                f"I've added {qty}x **{name}** (`{sku}`) to your cart! "
+                f"🎉 **Active Promotion ({camp_discount_pct}% OFF)**: Click **'🛡️ Check Out via Commerce Guardian'** "
+                f"on the right panel to authorize your discounted price of **₹{disc_subtotal/100:.2f}** (Catalog: ₹{cart.subtotal/100:.2f})."
+            )
+        else:
+            reply = (
+                f"I've added {qty}x **{name}** (`{sku}`) to your cart! "
+                f"Your cart subtotal is **₹{cart.subtotal/100:.2f}**. "
+                f"Click **'🛡️ Check Out via Commerce Guardian'** on the right panel to proceed."
+            )
 
         # Generate recommendations
         recs = await generate_upsell_recommendations(

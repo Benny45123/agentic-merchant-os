@@ -97,7 +97,11 @@ class RazorpayAdapter:
 
         # Support simulated 1-click test checkout in local/test environment
         settings = get_settings()
-        if settings.ENV in ["local", "test"] and signature in ["mock_signature_test", "mock_signature"]:
+        if settings.ENV in ["local", "test"] and (
+            signature in ["mock_signature_test", "mock_signature", "sig_sim_valid_payment"]
+            or signature.startswith("sig_sim_")
+            or signature.startswith("mock_")
+        ):
             return True
 
         message = f"{order_id}|{payment_id}".encode("utf-8")

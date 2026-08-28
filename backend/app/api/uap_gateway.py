@@ -91,10 +91,10 @@ async def get_uap_agent_manifest(
         "description": "Agentic Merchant OS flagship audio store with deterministic Guardian protection",
         "supported_payment_rails": ["razorpay_test_v1"],
         "capabilities": {
-            "conversational_checkout": True,
             "headless_a2a_checkout": True,
             "instant_replay_audit": True,
             "margin_safe_bundling": True,
+            "autonomous_a2a_negotiation": True,
         },
         "tools": [
             {
@@ -102,6 +102,18 @@ async def get_uap_agent_manifest(
                 "description": "Query live product catalog with authoritative prices and stock",
                 "endpoint": "/catalog/products",
                 "method": "GET",
+            },
+            {
+                "name": "submit_commerce_rfq",
+                "description": "Submit Request for Quote (RFQ) proposing custom unit price/volume; receive bilateral counter-offers within merchant margin floor",
+                "endpoint": "/commerce/rfq",
+                "method": "POST",
+            },
+            {
+                "name": "accept_negotiation_offer",
+                "description": "Accept a negotiated counter-offer (Direct Price or Bundle Sweetener) and execute deterministic Guardian settlement",
+                "endpoint": "/commerce/accept",
+                "method": "POST",
             },
             {
                 "name": "submit_machine_purchase",
