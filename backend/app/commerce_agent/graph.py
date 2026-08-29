@@ -67,8 +67,10 @@ async def intent_router_node(state: CommerceGraphState, session: AsyncSession = 
     # Identify SKU
     from app.commerce_agent.service import extract_sku_from_text, match_product_keyword, extract_quantity, _session_last_sku
     detected_sku = extract_sku_from_text(state["message"]) or match_product_keyword(state["message"])
-    if not detected_sku and state["session_id"] in _session_last_sku:
-        if any(kw in msg_lower for kw in ["yes", "add it", "add that", "add this", "add to cart", "in the cart", "buy it", "book it"]):
+    if detected_sku:
+        _session_last_sku[state["session_id"]] = detected_sku
+    elif state["session_id"] in _session_last_sku:
+        if any(kw in msg_lower for kw in ["yes", "add it", "add that", "add this", "add to cart", "in the cart", "buy it", "book it", "please add", "add", "put in", "cart", "1", "2", "3", "4", "5"]):
             detected_sku = _session_last_sku[state["session_id"]]
 
     qty = extract_quantity(state["message"])
@@ -215,7 +217,7 @@ async def conversational_chat_node(state: CommerceGraphState, session: AsyncSess
     history.append({"role": "user", "content": state["message"]})
 
     products = await search_products(merchant_id=state["merchant_id"], session=session)
-    catalog_summary = "\n".join([f"- {p.name} (SKU: {p.sku}, Price: ₹{p.price/100:.2f})" for p in products[:6]])
+    catalog_summary = "\n".join([f"- {p.name} (SKU: {p.sku}, Category: {p.category}, Price: ₹{p.price/100:.2f})" for p in products])
     
     grounded_prompt = (
         f"{COMMERCE_AGENT_SYSTEM_PROMPT}\n\n"
@@ -232,7 +234,7 @@ async def conversational_chat_node(state: CommerceGraphState, session: AsyncSess
     history.append({"role": "assistant", "content": reply})
 
     from app.commerce_agent.service import extract_sku_from_text, match_product_keyword, _session_last_sku
-    last_mentioned = extract_sku_from_text(reply) or match_product_keyword(reply)
+    last_mentioned = extract_sku_from_text(reply) or match_product_keyword(reply) or extract_sku_from_text(state["message"]) or match_product_keyword(state["message"])
     if last_mentioned:
         _session_last_sku[state["session_id"]] = last_mentioned
 

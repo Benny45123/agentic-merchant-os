@@ -25,7 +25,7 @@ export default function LiveTicker() {
       icon: Sparkles,
       tag: "18ms • PROMOTION",
       tagColor: "bg-emerald-100 text-emerald-800 border-emerald-200",
-      text: "Active Weekend Campaign applied 10% discount on AeroSound Earbuds (Saved ₹299.90)",
+      text: "Active Weekend Campaign applied 10% discount on Wireless Tech & Earbuds (Saved ₹299.90)",
       time: "24s ago",
     },
     {
