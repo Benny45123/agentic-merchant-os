@@ -28,17 +28,35 @@ Executable scripts are provided in `bin/` for single-command operations on macOS
 | Command | Action |
 | :--- | :--- |
 | **`./bin/setup_env.sh`** | Auto-installs standalone Astral `uv` if missing, sets up Python 3.12 virtualenv, runs Alembic migrations, loads seed data, and installs frontend dependencies. |
-| **`./bin/start.sh`** | **Starts full stack** (FastAPI Backend on `:8000` + Next.js Frontend on `:3000`) with graceful Ctrl+C shutdown. |
-| **`./bin/test.sh`** | Runs the full **Pytest suite** (Guardian 22-Matrix, Catalog, Receipts, Security, Agent) + **Architecture Import Linter**. |
-| **`./bin/run_scenarios.sh`** | Runs all **7 Automated End-to-End Demo Scenarios** (Happy Path, Injection Attack, Price Drift, Campaign Lifecycle, UAP Machine Purchase, Autopay Failure, A2A Reverse Auction). |
+| **`./bin/start.sh`** | **Starts full stack in background daemon mode** (FastAPI Backend on `:8000` + Next.js Frontend on `:3000`) and frees the terminal immediately. |
+| **`./bin/logs.sh`** | **Streams live logs in real time** (supports `./bin/logs.sh combined`, `./bin/logs.sh backend`, `./bin/logs.sh frontend`). |
+| **`./bin/stop.sh`** | **Stops all running background servers** and frees ports `:8000` & `:3000`. |
+| **`./bin/test.sh`** | Runs the full **Pytest suite** (47/47 passing) + **Architecture Import Graph Linter**. |
+| **`./bin/run_scenarios.sh`** | Runs all **8 Automated End-to-End Demo Scenarios** (Happy Path, Injection Attack, Price Drift, Underpayment Tampering, Campaign Lifecycle, UAP Machine Checkout, Autopay Breach, A2A Reverse Auction). |
 
 ---
 
 ## 🚀 Running the Platform
 
-### 1. Launch Backend & Frontend Together
+### 1. Launch Backend & Frontend in Background
 ```bash
 ./bin/start.sh
+```
+*Processes run detached in the background so your terminal is immediately ready for other work.*
+
+### 2. View Live Logs Anytime
+```bash
+# Stream combined live backend & frontend logs:
+./bin/logs.sh
+
+# Or stream specific logs:
+./bin/logs.sh backend
+./bin/logs.sh frontend
+```
+
+### 3. Stop Servers
+```bash
+./bin/stop.sh
 ```
 - **🛍️ Buyer Chat & Shopping Assistant:** [`http://localhost:3000/chat`](http://localhost:3000/chat)
 - **🤝 A2A Dynamic Negotiation Arena:** [`http://localhost:3000/negotiate`](http://localhost:3000/negotiate)

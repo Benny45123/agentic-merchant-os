@@ -1,55 +1,68 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Start Full Stack (Backend on :8000 + Frontend on :3000)
+# Start Full Stack in Background (Daemon Mode) with Live Logging
 # ==============================================================================
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+LOGS_DIR="$REPO_ROOT/logs"
+
+mkdir -p "$LOGS_DIR"
 
 echo "=================================================================="
-echo "🚀 Starting Agentic Merchant OS (Full Stack)"
+echo "🚀 Launching Agentic Merchant OS in Background"
 echo "=================================================================="
 
-# Function to cleanly stop background processes on exit
-cleanup() {
-    echo ""
-    echo "🛑 Shutting down backend and frontend servers..."
-    kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
-    wait "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
-    echo "✅ Shutdown complete."
-    exit 0
-}
+# 1. Stop any previous instances on ports 8000 or 3000
+lsof -ti:8000 | xargs kill -9 2>/dev/null || true
+lsof -ti:3000 | xargs kill -9 2>/dev/null || true
 
-trap cleanup SIGINT SIGTERM EXIT
+# Initialize log files
+touch "$LOGS_DIR/backend.log" "$LOGS_DIR/frontend.log"
+> "$LOGS_DIR/backend.log"
+> "$LOGS_DIR/frontend.log"
 
-# 1. Start Backend in background
-echo "📦 [1/2] Launching Backend on http://localhost:8000..."
+# 2. Launch Backend in background
+echo "📦 [1/2] Starting FastAPI Backend on http://localhost:8000..."
 cd "$REPO_ROOT/backend"
-source .venv/bin/activate
-uvicorn app.main:app --reload --port 8000 --host 0.0.0.0 &
-BACKEND_PID=$!
+if [ -d ".venv" ]; then
+    source .venv/bin/activate
+fi
 
-# Wait briefly for backend port to bind
+# Run backend detached with nohup
+nohup uvicorn app.main:app --reload --port 8000 --host 0.0.0.0 > "$LOGS_DIR/backend.log" 2>&1 &
+BACKEND_PID=$!
+echo "$BACKEND_PID" > "$LOGS_DIR/backend.pid"
+
+# 3. Launch Frontend in background
+echo "💻 [2/2] Starting Next.js Frontend on http://localhost:3000..."
+cd "$REPO_ROOT/frontend"
+nohup npm run dev > "$LOGS_DIR/frontend.log" 2>&1 &
+FRONTEND_PID=$!
+echo "$FRONTEND_PID" > "$LOGS_DIR/frontend.pid"
+
+# Wait briefly for ports to initialize
 sleep 2
 
-# 2. Start Frontend in background
-echo "💻 [2/2] Launching Frontend on http://localhost:3000..."
-cd "$REPO_ROOT/frontend"
-npm run dev &
-FRONTEND_PID=$!
-
 echo ""
 echo "=================================================================="
-echo "🎉 AGENTIC MERCHANT OS IS RUNNING!"
+echo "🎉 AGENTIC MERCHANT OS IS RUNNING IN THE BACKGROUND!"
 echo "=================================================================="
-echo "👉 Frontend App:     http://localhost:3000"
-echo "👉 Buyer Chat:       http://localhost:3000/chat"
-echo "👉 Merchant Control: http://localhost:3000/dashboard"
-echo "👉 Backend API Docs: http://localhost:8000/docs"
+echo "👉 Frontend UI:       http://localhost:3000"
+echo "👉 Buyer Chat:        http://localhost:3000/chat"
+echo "👉 A2A Arena:         http://localhost:3000/negotiate"
+echo "👉 Receipts Explorer: http://localhost:3000/receipts"
+echo "👉 Merchant Control:  http://localhost:3000/dashboard"
+echo "👉 Backend API Docs:  http://localhost:8000/docs"
 echo "=================================================================="
-echo "Press Ctrl+C to stop all servers."
+echo "📜 LIVE LOGS STREAMING:"
+echo "   • Stream All Logs:     ./bin/logs.sh"
+echo "   • Backend Logs Only:   ./bin/logs.sh backend"
+echo "   • Frontend Logs Only:  ./bin/logs.sh frontend"
+echo "=================================================================="
+echo "🛑 TO STOP BACKGROUND SERVERS:"
+echo "   • Run: ./bin/stop.sh"
+echo "=================================================================="
+echo "✅ Terminal is now free. Background processes are running safely."
 echo ""
-
-# Wait for both processes
-wait "$BACKEND_PID" "$FRONTEND_PID"
