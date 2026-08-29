@@ -95,7 +95,7 @@ export default function BuyerChatPage() {
     {
       id: "m0",
       sender: "agent",
-      text: "Hello! I am your AI Shopping Assistant for AeroSound. How can I help you today? You can ask for headphones, soundbars, or active promotional discounts.",
+      text: "Hello! I am your AI Shopping Assistant. How can I help you today? You can search for smartphones, laptops, smartwatches, audio gear, or explore active promotional discounts.",
     },
   ]);
   const [input, setInput] = useState("");
@@ -112,10 +112,14 @@ export default function BuyerChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const quickPrompts = [
-    { label: "🎧 Wireless Headphones", text: "Show me wireless headphones with active noise cancellation" },
-    { label: "🔊 Home Soundbars", text: "What soundbars do you recommend for movies?" },
-    { label: "⚡ Active Promotions", text: "Are there any weekend campaign discounts available?" },
-    { label: "🛒 Add HP-001", text: "Please add HP-001 headphones to my cart" },
+    { label: "🎧 HP-001 Headphones", text: "Add AeroSound Wireless Headphones (HP-001) to my cart" },
+    { label: "📱 iPhone 15 (128GB)", text: "Add Apple iPhone 15 to my cart" },
+    { label: "⚡ Galaxy S24 5G", text: "Add Samsung Galaxy S24 5G to my cart" },
+    { label: "💻 MacBook Air M3", text: "Add Apple MacBook Air M3 to my cart" },
+    { label: "🖥️ Dell XPS 13 OLED", text: "Add Dell XPS 13 Plus to my cart" },
+    { label: "⌚ Apple Watch S9", text: "Add Apple Watch Series 9 to my cart" },
+    { label: "⚡ Weekend Promotions", text: "Are there any weekend campaign discounts available?" },
+    { label: "🔊 Home Soundbars", text: "Show me details for AeroSound SoundBar Pro" },
   ];
 
   const startVoiceInput = () => {
@@ -243,7 +247,7 @@ export default function BuyerChatPage() {
         key: order.key_id,
         amount: order.amount,
         currency: order.currency,
-        name: "AeroSound Store",
+        name: "Agentic Merchant Store",
         description: "Agentic Commerce Order Checkout",
         order_id: order.order_id,
         handler: async function (response: any) {
@@ -354,14 +358,14 @@ export default function BuyerChatPage() {
             </div>
 
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-900 tracking-tight leading-tight">
-              AeroSound Autonomous{" "}
+              Autonomous{" "}
               <span className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-violet-700 bg-clip-text text-transparent">
                 Commerce Assistant
               </span>
             </h1>
 
             <p className="text-xs sm:text-sm text-slate-600 font-normal leading-relaxed">
-              Converse naturally with the AI shopping agent to discover catalog audio gear, receive margin-verified bundle recommendations, and checkout securely through deterministic Commerce Guardian guardrails.
+              Converse naturally with the AI shopping agent to discover smartphones, laptops, audio gear, and accessories, receive margin-verified bundle recommendations, and checkout securely through deterministic Commerce Guardian guardrails.
             </p>
           </div>
 
@@ -434,7 +438,7 @@ export default function BuyerChatPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">
-                    AeroSound AI Assistant
+                    Agentic Commerce Assistant
                   </span>
                   <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
                     Sub-50ms Kernel
@@ -458,17 +462,18 @@ export default function BuyerChatPage() {
             </div>
           </div>
 
-          {/* Quick Suggestion Chips */}
-          <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">
-              💡 Quick Prompts:
+          {/* Main Clean Quick Prompts Bar */}
+          <div className="px-4 py-2.5 bg-slate-50/90 border-b border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar shadow-2xs">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap flex items-center gap-1.5 shrink-0 font-mono">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+              <span>Quick Prompts:</span>
             </span>
             {quickPrompts.map((q, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => handleSend(q.text)}
-                className="px-3 py-1 rounded-full text-xs bg-white hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 border border-slate-200 text-slate-700 whitespace-nowrap transition-all shadow-2xs font-medium shrink-0"
+                className="px-3 py-1.5 rounded-xl text-xs bg-white hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 border border-slate-200 text-slate-700 whitespace-nowrap transition-all shadow-2xs font-bold shrink-0"
               >
                 {q.label}
               </button>

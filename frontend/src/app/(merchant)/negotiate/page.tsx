@@ -64,18 +64,46 @@ export default function NegotiationArenaPage() {
       tag: "Flagship Audio",
       icon: "🎧",
     },
-    "HP-002": {
-      name: "AeroSound Sport Earbuds",
-      catalogPrice: 2999,
-      cost: 1800,
-      tag: "Activewear",
+    "PHN-APL-15": {
+      name: "Apple iPhone 15 (128GB)",
+      catalogPrice: 69900,
+      cost: 56000,
+      tag: "Smartphones",
+      icon: "📱",
+    },
+    "PHN-SAM-S24": {
+      name: "Samsung Galaxy S24 5G (256GB)",
+      catalogPrice: 74999,
+      cost: 59000,
+      tag: "Smartphones",
       icon: "⚡",
+    },
+    "LAP-APL-M3": {
+      name: "Apple MacBook Air M3 (16GB, 512GB)",
+      catalogPrice: 114900,
+      cost: 92000,
+      tag: "Laptops",
+      icon: "💻",
+    },
+    "LAP-DEL-XPS": {
+      name: "Dell XPS 13 Plus (Core Ultra 7, OLED)",
+      catalogPrice: 129999,
+      cost: 103000,
+      tag: "Laptops",
+      icon: "🖥️",
+    },
+    "WCH-APL-S9": {
+      name: "Apple Watch Series 9 (GPS 45mm)",
+      catalogPrice: 38900,
+      cost: 31000,
+      tag: "Wearables",
+      icon: "⌚",
     },
     "SPK-001": {
       name: "AeroSound SoundBar Pro",
       catalogPrice: 8999,
       cost: 6000,
-      tag: "Home Theater",
+      tag: "Home Audio",
       icon: "🔊",
     },
   };
@@ -646,18 +674,37 @@ export default function NegotiationArenaPage() {
 
               <button
                 type="button"
-                onClick={() => applyPreset("SPK-001", 2, 8200)}
+                onClick={() => applyPreset("PHN-APL-15", 2, 66000)}
+                className="w-full text-left p-3 rounded-2xl bg-slate-50 hover:bg-blue-50/50 border border-slate-200 hover:border-blue-300 text-xs text-slate-800 font-medium transition-all flex items-center justify-between group"
+              >
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-blue-700 font-bold">📱 Scenario C: iPhone 15 Procurement</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-100 text-blue-800 font-mono font-bold">
+                      15.2% Margin
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    2x iPhone 15 @ ₹66,000 (Wholesale procurement, attaches MagSafe & Shield)
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => applyPreset("LAP-APL-M3", 1, 108000)}
                 className="w-full text-left p-3 rounded-2xl bg-slate-50 hover:bg-purple-50/50 border border-slate-200 hover:border-purple-300 text-xs text-slate-800 font-medium transition-all flex items-center justify-between group"
               >
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-purple-700 font-bold">🔊 Scenario C: SoundBar Pro B2B</span>
+                    <span className="text-purple-700 font-bold">💻 Scenario D: MacBook Air M3 Enterprise</span>
                     <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 font-mono font-bold">
-                      26.8% Margin
+                      15% Floor Zone
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    2x SPK-001 @ ₹8,200 (High-ticket institutional procurement)
+                    1x MacBook M3 @ ₹1,08,000 (Attaches 7-in-1 Hub & 3-Year On-Site Protection)
                   </p>
                 </div>
                 <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all" />
