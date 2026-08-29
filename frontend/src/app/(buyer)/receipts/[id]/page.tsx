@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ReceiptData, GuardianCheck, getReceipt, replayReceipt } from "@/lib/api";
+import MerkleTreeVisualizer from "@/components/MerkleTreeVisualizer";
 import {
   Shield,
   Zap,
@@ -401,6 +402,9 @@ export default function ReceiptDetailPage() {
           </p>
         </div>
       )}
+
+      {/* Cryptographic Merkle Proof Tree Diagram */}
+      <MerkleTreeVisualizer receipt={receipt} replayResult={replayResult} />
 
       {/* Visual Safety Boundary Gauges (Explainable Gating) */}
       <div className="glass-card bg-white/95 rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-xl space-y-5">

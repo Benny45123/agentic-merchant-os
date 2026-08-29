@@ -728,13 +728,13 @@ async def seed_data(session: AsyncSession) -> None:
     ]
     session.add_all(offers)
 
-    # 7. Seed Merchant Policy (Configured to support electronics, phones, and laptops)
+    # 7. Seed Merchant Policy
     policy = MerchantPolicy(
         policy_id="pol_001",
         merchant_id=DEMO_MERCHANT_ID,
-        maximum_discount_pct=25,
+        maximum_discount_pct=20,
         minimum_margin_pct=15,
-        maximum_order_value=50000000,  # ₹5,00,000.00 Max Order Cap
+        maximum_order_value=2000000,  # ₹20,000.00
         allowed_products_for_discount=None,
         minimum_stock_to_sell=1,
         version=1,
@@ -746,24 +746,24 @@ async def seed_data(session: AsyncSession) -> None:
     campaign_policy = CampaignPolicy(
         merchant_id=DEMO_MERCHANT_ID,
         allowed_campaign_discount_pct=20,
-        campaign_budget_default=10000000,  # ₹1,00,000.00
-        daily_campaign_budget_cap=10000000,
+        campaign_budget_default=1000000,  # ₹10,000.00
+        daily_campaign_budget_cap=5000000,  # ₹50,000.00
         created_at=utc_now(),
     )
     session.add(campaign_policy)
 
-    # 9. Seed Active Buyer Mandate (Extended for Mobiles & Laptops)
+    # 9. Seed Active Buyer Mandate
     mandate = Mandate(
         mandate_id="mand_001",
         buyer_id=DEMO_BUYER_ID,
-        max_amount=25000000,  # ₹2,50,000.00 Mandate Spend Cap
+        max_amount=1000000,  # ₹10,000.00
         max_quantity_per_item=5,
         allowed_categories=["audio", "accessories", "wearables", "mobiles", "laptops", "electronics"],
         allowed_merchants=[DEMO_MERCHANT_ID],
         allowed_products=None,
         currency="INR",
         expires_at=utc_now() + timedelta(days=180),
-        confirmation_required_above=15000000,  # ₹1,50,000.00
+        confirmation_required_above=500000,  # ₹5,000.00
         signature=None,
         active=True,
         created_at=utc_now(),
