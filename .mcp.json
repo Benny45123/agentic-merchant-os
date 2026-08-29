@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "agentic-merchant-os": {
+      "command": "/Users/apple/agentic-merchant-os/backend/.venv/bin/python",
+      "args": ["/Users/apple/agentic-merchant-os/backend/app/api/mcp_server.py"],
+      "env": {
+        "MERCHANT_API_BASE": "http://localhost:8000"
+      }
+    }
+  }
+}
