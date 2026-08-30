@@ -21,19 +21,19 @@ AI Buyer Bot / Web Chat → Proposed Transaction Intent → Commerce Guardian (D
 
 ---
 
-## ⚡ Quick Start Commands (`bin/`)
+## ⚡ Universal Quick Start Commands (`bin/`)
 
-Executable scripts are provided in `bin/` for single-command operations on macOS / Linux:
+Universal scripts are provided in `bin/` for 1-command execution across **macOS, Linux & Windows** (Git Bash / WSL / CMD / PowerShell):
 
-| Command | Action |
-| :--- | :--- |
-| **`./bin/setup_env.sh`** | Auto-installs standalone Astral `uv` if missing, sets up Python 3.12 virtualenv, runs Alembic migrations, loads seed data, and installs frontend dependencies. |
-| **`./bin/start.sh`** | **Starts full stack in background daemon mode** (FastAPI Backend on `:8000` + Next.js Frontend on `:3000`) and frees the terminal immediately. |
-| **`./bin/logs.sh`** | **Streams live logs in real time** (supports `./bin/logs.sh combined`, `./bin/logs.sh backend`, `./bin/logs.sh frontend`). |
-| **`./bin/simulate_ai_buyer.sh`** | **Runs Headless AI Buyer CLI Simulator** negotiating dynamic wholesale quotes over UAP-1.0 and settling autonomously with zero human UI. |
-| **`./bin/stop.sh`** | **Stops all running background servers** and frees ports `:8000` & `:3000`. |
-| **`./bin/test.sh`** | Runs the full **Pytest suite** (47/47 passing) + **Architecture Import Graph Linter**. |
-| **`./bin/run_scenarios.sh`** | Runs all **8 Automated End-to-End Demo Scenarios** (Happy Path, Injection Attack, Price Drift, Underpayment Tampering, Campaign Lifecycle, UAP Machine Checkout, Autopay Breach, A2A Reverse Auction). |
+| Action / Description | macOS / Linux / Git Bash | Windows (CMD / PowerShell) |
+| :--- | :--- | :--- |
+| **1. Setup Virtualenv & Seed DB**<br>Auto-installs standalone Astral `uv` if missing, sets up Python 3.12 virtualenv, runs Alembic migrations, loads seed data, and installs frontend dependencies. | `./bin/setup_env` | `bin\setup_env` |
+| **2. Start Full Stack (Background)**<br>**Starts full stack in background daemon mode** (FastAPI Backend on `:8000` + Next.js Frontend on `:3000`) and frees the terminal immediately. | `./bin/start` | `bin\start` |
+| **3. Stream Live Logs**<br>**Streams live logs in real time** (supports `./bin/logs combined`, `./bin/logs backend`, `./bin/logs frontend`). | `./bin/logs` | — *(Opens live windows)* |
+| **4. Run Autonomous AI Buyer (A2A)**<br>**Runs Headless AI Buyer CLI Simulator** negotiating dynamic wholesale quotes over UAP-1.0 and settling autonomously with zero human UI. | `./bin/simulate_ai_buyer` | `bin\simulate_ai_buyer` |
+| **5. Stop All Running Servers**<br>**Stops all running background servers** and frees ports `:8000` & `:3000`. | `./bin/stop` | `bin\stop` |
+| **6. Run Pytests & Architecture Lint**<br>Runs the full **Pytest suite** (47/47 passing) + **Architecture Import Graph Linter**. | `./bin/test` | `bin\test` |
+| **7. Run 8 E2E Demo Scenarios**<br>Runs all **8 Automated End-to-End Demo Scenarios** (Happy Path, Injection Attack, Price Drift, Underpayment Tampering, Campaign Lifecycle, UAP Machine Checkout, Autopay Breach, A2A Reverse Auction). | `./bin/run_scenarios` | `bin\run_scenarios` |
 
 ---
 
@@ -41,23 +41,31 @@ Executable scripts are provided in `bin/` for single-command operations on macOS
 
 ### 1. Launch Backend & Frontend in Background
 ```bash
-./bin/start.sh
+# macOS / Linux / Git Bash:
+./bin/start
+
+# Windows CMD / PowerShell:
+bin\start
 ```
-*Processes run detached in the background so your terminal is immediately ready for other work.*
+*Processes run detached in background daemon mode so your terminal is immediately freed.*
 
 ### 2. View Live Logs Anytime
 ```bash
 # Stream combined live backend & frontend logs:
-./bin/logs.sh
+./bin/logs
 
 # Or stream specific logs:
-./bin/logs.sh backend
-./bin/logs.sh frontend
+./bin/logs backend
+./bin/logs frontend
 ```
 
 ### 3. Stop Servers
 ```bash
-./bin/stop.sh
+# macOS / Linux / Git Bash:
+./bin/stop
+
+# Windows CMD / PowerShell:
+bin\stop
 ```
 - **🛍️ Buyer Chat & Shopping Assistant:** [`http://localhost:3000/chat`](http://localhost:3000/chat)
 - **🤝 A2A Dynamic Negotiation Arena:** [`http://localhost:3000/negotiate`](http://localhost:3000/negotiate)
