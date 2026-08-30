@@ -55,7 +55,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# IDE & OS
+# IDE & OS & Logs
 .DS_Store
 .AppleDouble
 .LSOverride
@@ -64,3 +64,7 @@ yarn-error.log*
 *.swp
 *.swo
 *~
+logs/
+*.log
+.claude/
+
