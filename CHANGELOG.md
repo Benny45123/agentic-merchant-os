@@ -11,7 +11,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Universal Extensionless CLI Wrappers (`bin/`)**: Created unified entrypoints (`setup_env`, `start`, `stop`, `test`, `simulate_ai_buyer`, `logs`, `run_scenarios`) enabling single-command execution on macOS, Linux, and Git Bash.
 - **Native Windows Batch (`*.bat`) & PowerShell (`*.ps1`) Scripts**: Added dedicated scripts in `bin/` (`setup_env.bat`, `start.bat`, `stop.bat`, `test.bat`, `simulate_ai_buyer.bat`, `start.ps1`, `stop.ps1`) for zero-WSL Windows compatibility.
 - **Root-Level Model Context Protocol (MCP) Config (`.mcp.json`)**: Configured automatic MCP tool discovery for **Claude Code CLI** (`claude`) and **Claude Desktop**.
-- **Comprehensive Cross-Platform Documentation**: Updated `README.md` with a detailed command matrix and descriptions across macOS, Linux, and Windows.
+- **Comprehensive Cross-Platform Documentation & Architecture Overhaul**: Upgraded `README.md` with visual ASCII architecture flow diagrams, live portal mapping tables, complete MCP tools reference, 8-scenario demo suite breakdown, and cross-platform execution matrices.
 
 ---
 
