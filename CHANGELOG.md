@@ -17,7 +17,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Configured explicit `PYTHONPATH` module resolution across all shell environments.
   - Fixed async HTTP calls in `app/telegram/handlers.py` with proper coroutine awaiting.
   - Enhanced A2A Reverse Auction service (`app/negotiation/service.py`) to formulate margin-floor clamped counter-offers and bundle sweeteners when buyer bids are aggressive.
+  - Fixed missing return statement in `TelegramHandlers.handle_receipt_view` ensuring receipt audits render properly in-app and across demo scenarios.
+  - Added Scenario 9 (`scripts/scenario_telegram_gateway.py`) to the end-to-end demo suite (`scripts/run_scenarios.py` & `./bin/demo`), demonstrating automated execution of the Omnichannel Telegram Bot Mobile Gateway.
+  - Fixed `is_floor_breached` variable scoping in `app/negotiation/service.py` to correctly flag aggressive buyer bids as `REJECTED_MARGIN_FLOOR`.
+
+  - Configured FastAPI `get_session` dependency overrides in `conftest.py` ensuring all in-memory test database queries run isolated.
+
+  - Added automated test suite `backend/tests/test_telegram_bot.py` covering start greetings, live catalog fetching, direct buy, A2A reverse auctions, payment sync, and natural language query routing.
+
+
+  - Built interactive CLI scenario runner `scripts/demo_telegram_scenario.py` simulating end-to-end mobile user interactions with terminal cards.
   - Enhanced `POST /payments/sync/{order_id}` with multi-check Razorpay verification (order fetch, payments list, recent captured payments, and test fallback).
+
   - Implemented `POST /payments/sync/{order_id}` to query Razorpay API / test mode status, mark orders as `PAID`, finalize receipts, and credit store revenue.
   - Added `[ 🔄 Confirm & Verify Payment ]` button in Telegram Bot so customers can confirm completed payments and trigger immediate revenue crediting to the Merchant Dashboard.
 

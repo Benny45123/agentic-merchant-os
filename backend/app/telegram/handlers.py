@@ -467,8 +467,10 @@ class TelegramHandlers:
                         [{"text": "🛍️ Continue Shopping", "callback_data": "cmd:catalog"}]
                     ]
                 }
+                return {"text": text, "reply_markup": keyboard}
         except Exception as e:
             return {"text": f"⚠️ <i>Error loading receipt: {html.escape(str(e))}</i>"}
+
 
     async def handle_check_payment(self, order_id: str, receipt_id: str) -> Dict[str, Any]:
         """Checks Razorpay payment status, marks order as paid, and syncs store revenue."""
