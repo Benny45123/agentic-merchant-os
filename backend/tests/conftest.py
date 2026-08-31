@@ -24,8 +24,17 @@ async def test_db_session() -> AsyncGenerator[AsyncSession, None]:
         
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     
+    from app.main import app
+    from app.core.db import get_session
+
     async with session_factory() as session:
+        async def override_get_session():
+            yield session
+
+        app.dependency_overrides[get_session] = override_get_session
         yield session
+        app.dependency_overrides.clear()
         await session.rollback()
         
     await engine.dispose()
+

@@ -133,22 +133,23 @@ async def test_case_06_confirmation_required_above_threshold(test_db_session: As
 
 @pytest.mark.asyncio
 async def test_case_07_total_exceeds_policy_max_order_value(test_db_session: AsyncSession):
-    """Case 7: Total exceeds policy.maximum_order_value (2000000 paise) -> BLOCK"""
-    # Temporarily raise mandate max amount so mandate passes, but policy blocks
+    """Case 7: Total exceeds policy.maximum_order_value (10000000 paise / ₹1 Lakh) -> BLOCK"""
+    # Temporarily raise mandate max amount so mandate passes, but policy blocks at ₹1 Lakh
     await create_mandate(
         DEMO_BUYER_ID,
         MandateCreate(
-            max_amount=5000000,
+            max_amount=20000000,
             max_quantity_per_item=10,
             currency="INR",
             expires_at=utc_now() + timedelta(days=30),
         ),
         test_db_session,
     )
-    req = make_intent_req(sku="SPK-001", qty=3, observed_price=899900)  # Total 2699700 > 2000000
+    req = make_intent_req(sku="PHN-APL-15", qty=2, observed_price=6990000)  # Total 13980000 > 10000000 (₹1.39 Lakhs > ₹1 Lakh)
     resp = await evaluate_transaction_intent(req, test_db_session)
     assert resp.decision == DecisionType.BLOCK
     assert "maximum order value" in resp.primary_reason
+
 
 
 @pytest.mark.asyncio

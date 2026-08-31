@@ -79,12 +79,15 @@ async def process_commerce_rfq(rfq: RFQRequest, session: AsyncSession) -> RFQRes
     else:
         proposed_margin = ((total_buyer_target_paise - total_cost_paise) / total_buyer_target_paise) * 100.0
 
+    is_floor_breached = proposed_margin < min_margin_pct
+
     # 4. If proposed price breaches the margin floor, clamp the counter-offers to the minimum allowed floor
     min_allowed_total = int(total_cost_paise / (1.0 - (min_margin_pct / 100.0)))
     unit_target_paise = rfq.items[0].target_unit_price_paise
 
     # Clamped base unit target (must be at least floor unit price)
     clamped_unit_target = max(unit_target_paise, int(min_allowed_total / rfq.items[0].qty))
+
 
 
     # 5. Generate Bilateral Counter-Offers
@@ -233,14 +236,25 @@ async def process_commerce_rfq(rfq: RFQRequest, session: AsyncSession) -> RFQRes
         "created_at": utc_now().isoformat(),
     }
 
+    if is_floor_breached:
+        status_val = "REJECTED_MARGIN_FLOOR"
+        reason_val = (
+            f"Buyer target unit price of ₹{primary_item.target_unit_price_paise/100:.2f} results in {proposed_margin:.1f}% margin, "
+            f"which breaches merchant minimum margin policy ({min_margin_pct:.1f}%). "
+            f"Counter-offers formulated to protect margin floor."
+        )
+    else:
+        status_val = "OFFERS_PROPOSED"
+        reason_val = "Counter-offers computed within merchant gross margin and discount policy constraints."
+
     notes = (
         f"Dynamic RFQ evaluation completed for {primary_item.qty}x {primary_item.sku}. "
-        f"Proposed margin ({proposed_margin:.1f}%) satisfies >= {min_margin_pct:.1f}% floor. "
+        f"Proposed margin: {proposed_margin:.1f}% (Floor: {min_margin_pct:.1f}%). "
         f"Formulated 2 competitive counter-offers balancing volume discount and profit lift (+₹{profit_compromise/100:.2f} / +₹{profit_lift/100:.2f})."
     )
 
     return RFQResponse(
-        status="OFFERS_PROPOSED",
+        status=status_val,
         session_id=session_id,
         round_index=rfq.round_index,
         merchant_id=merchant_id,
@@ -248,9 +262,10 @@ async def process_commerce_rfq(rfq: RFQRequest, session: AsyncSession) -> RFQRes
         buyer_target_total_paise=total_buyer_target_paise,
         minimum_margin_floor_pct=min_margin_pct,
         counter_offers=counter_offers,
-        reason="Counter-offers computed within merchant gross margin and discount policy constraints.",
+        reason=reason_val,
         ai_pricing_agent_notes=notes,
     )
+
 
 
 async def settle_negotiated_offer(
