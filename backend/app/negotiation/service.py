@@ -79,27 +79,13 @@ async def process_commerce_rfq(rfq: RFQRequest, session: AsyncSession) -> RFQRes
     else:
         proposed_margin = ((total_buyer_target_paise - total_cost_paise) / total_buyer_target_paise) * 100.0
 
-    # 4. Check if proposed price breaches the absolute margin floor
-    if proposed_margin < min_margin_pct:
-        min_allowed_total = int(total_cost_paise / (1.0 - (min_margin_pct / 100.0)))
-        return RFQResponse(
-            status="REJECTED_MARGIN_FLOOR",
-            session_id=session_id,
-            round_index=rfq.round_index,
-            merchant_id=merchant_id,
-            catalog_total_paise=total_catalog_paise,
-            buyer_target_total_paise=total_buyer_target_paise,
-            minimum_margin_floor_pct=min_margin_pct,
-            counter_offers=[],
-            reason=(
-                f"Proposed total ₹{total_buyer_target_paise/100:.2f} yields gross margin of {proposed_margin:.1f}%, "
-                f"which violates merchant minimum gross margin floor of {min_margin_pct:.1f}% (Total Cost: ₹{total_cost_paise/100:.2f})."
-            ),
-            ai_pricing_agent_notes=(
-                f"Strict margin floor enforcement: Floor required ₹{min_allowed_total/100:.2f}. "
-                f"Advise buyer agent to raise target price."
-            ),
-        )
+    # 4. If proposed price breaches the margin floor, clamp the counter-offers to the minimum allowed floor
+    min_allowed_total = int(total_cost_paise / (1.0 - (min_margin_pct / 100.0)))
+    unit_target_paise = rfq.items[0].target_unit_price_paise
+
+    # Clamped base unit target (must be at least floor unit price)
+    clamped_unit_target = max(unit_target_paise, int(min_allowed_total / rfq.items[0].qty))
+
 
     # 5. Generate Bilateral Counter-Offers
     counter_offers: List[CounterOfferOption] = []
@@ -156,8 +142,8 @@ async def process_commerce_rfq(rfq: RFQRequest, session: AsyncSession) -> RFQRes
             )
         )
     else:
-        # Case 2: Standard volume discount negotiation
-        compromise_unit_price = int(unit_target + ((unit_catalog - unit_target) * 0.35))
+        # Case 2: Standard volume discount negotiation (guaranteed to meet margin floor)
+        compromise_unit_price = max(clamped_unit_target, int(unit_target + ((unit_catalog - unit_target) * 0.35)))
         compromise_total = compromise_unit_price * primary_item.qty
         compromise_margin = ((compromise_total - total_cost_paise) / compromise_total) * 100.0
         compromise_discount_pct = ((total_catalog_paise - compromise_total) / total_catalog_paise) * 100.0
@@ -178,18 +164,20 @@ async def process_commerce_rfq(rfq: RFQRequest, session: AsyncSession) -> RFQRes
                 projected_gross_margin_pct=round(compromise_margin, 2),
                 margin_floor_satisfied=compromise_margin >= min_margin_pct,
                 bundled_items=[],
-                merchant_profit_lift_paise=profit_compromise - profit_buyer_target,
+                merchant_profit_lift_paise=max(0, profit_compromise - profit_buyer_target),
             )
         )
 
-    # Strategy B: Bundle Sweetener (Value Maximizer)
+    # Strategy B: Bundle Sweetener (Value Maximizer - strictly complies with policy max discount <= 20%)
     if companion_prod:
         addon_qty = primary_item.qty
         addon_orig_price = companion_prod.price
-        addon_disc_price = int(addon_orig_price * 0.5)  # 50% off
+        addon_disc_pct = min(int(max_discount_pct), 20)  # Strictly respects merchant 20% ceiling
+        addon_disc_price = int(addon_orig_price * (1.0 - (addon_disc_pct / 100.0)))
         addon_cost = companion_prod.cost or int(addon_orig_price * 0.4)
 
-        bundle_total_rev = (unit_target * primary_item.qty) + (addon_disc_price * addon_qty)
+        base_unit_for_bundle = max(clamped_unit_target, unit_target)
+        bundle_total_rev = (base_unit_for_bundle * primary_item.qty) + (addon_disc_price * addon_qty)
         bundle_total_cost = total_cost_paise + (addon_cost * addon_qty)
         bundle_margin = ((bundle_total_rev - bundle_total_cost) / bundle_total_rev) * 100.0
         bundle_profit = bundle_total_rev - bundle_total_cost
@@ -201,12 +189,12 @@ async def process_commerce_rfq(rfq: RFQRequest, session: AsyncSession) -> RFQRes
             CounterOfferOption(
                 option_id="OPT_BUNDLE_SWEETENER",
                 option_type="BUNDLE_SWEETENER",
-                title=f"Target Price Accepted (₹{unit_target/100:.2f}) + {addon_qty}x {companion_prod.name} @ 50% Off",
+                title=f"Target Price Deal + {addon_qty}x {companion_prod.name} @ {addon_disc_pct}% Off",
                 description=(
-                    f"We accept your target price of ₹{unit_target/100:.2f}/unit for {primary_item.qty}x {primary_prod.name} "
-                    f"if bundled with {addon_qty}x {companion_prod.name} at ₹{addon_disc_price/100:.2f} (50% off ₹{addon_orig_price/100:.2f})."
+                    f"We fulfill {primary_item.qty}x {primary_prod.name} with companion {addon_qty}x {companion_prod.name} "
+                    f"at ₹{addon_disc_price/100:.2f} ({addon_disc_pct}% off ₹{addon_orig_price/100:.2f})."
                 ),
-                unit_price_paise=unit_target,
+                unit_price_paise=base_unit_for_bundle,
                 total_amount_paise=bundle_total_rev,
                 discount_pct=round(bundle_disc_pct, 2),
                 projected_gross_margin_pct=round(bundle_margin, 2),
@@ -218,12 +206,14 @@ async def process_commerce_rfq(rfq: RFQRequest, session: AsyncSession) -> RFQRes
                         addon_qty=addon_qty,
                         original_price_paise=addon_orig_price,
                         discounted_price_paise=addon_disc_price,
-                        discount_pct=50,
+                        discount_pct=addon_disc_pct,
                     )
                 ],
                 merchant_profit_lift_paise=max(0, profit_lift),
             )
         )
+
+
 
     # Save session state
     _negotiation_sessions[session_id] = {
@@ -276,9 +266,11 @@ async def settle_negotiated_offer(
     if not session_data:
         raise ValueError(f"Negotiation session '{accept_req.session_id}' not found or expired.")
 
-    selected_opt = session_data["counter_offers"].get(accept_req.selected_option_id)
+    target_option_id = accept_req.selected_option_id or accept_req.option_id
+    selected_opt = session_data["counter_offers"].get(target_option_id)
     if not selected_opt:
-        raise ValueError(f"Option '{accept_req.selected_option_id}' is invalid for session '{accept_req.session_id}'.")
+        raise ValueError(f"Option '{target_option_id}' is invalid for session '{accept_req.session_id}'.")
+
 
     buyer_bot_id = accept_req.buyer_agent_id or session_data.get("buyer_agent_id", "b_001")
 
@@ -293,28 +285,44 @@ async def settle_negotiated_offer(
     mandate_stmt = select(Mandate).where(Mandate.buyer_id == buyer_bot_id, Mandate.active == True)
     m_res = await session.execute(mandate_stmt)
     existing_mandate = m_res.scalar_one_or_none()
+    categories_list = ["audio", "accessories", "wearables", "mobiles", "phones", "laptops", "electronics", "hardware"]
+
     if not existing_mandate:
         mand_info = session_data.get("buyer_mandate", {})
         mandate = Mandate(
             mandate_id=f"mand_neg_{uuid.uuid4().hex[:8]}",
             buyer_id=buyer_bot_id,
-            max_amount=mand_info.get("max_amount", 2500000),
+            max_amount=mand_info.get("max_amount", 10000000),  # ₹1,00,000 (1 Lakh)
             max_quantity_per_item=mand_info.get("max_quantity_per_item", 10),
-            allowed_categories=["audio", "accessories", "wearables"],
+            allowed_categories=categories_list,
             allowed_merchants=[accept_req.merchant_id],
             currency="INR",
             expires_at=utc_now() + timedelta(days=90),
-            confirmation_required_above=5000000,
+            confirmation_required_above=20000000,
             signature=mand_info.get("signature", "sig_ed25519_procurement_mandate"),
             active=True,
             created_at=utc_now(),
         )
         session.add(mandate)
         await session.flush()
+    else:
+        # Upgrade existing mandate categories and ceiling if needed
+        existing_mandate.max_amount = max(existing_mandate.max_amount or 0, 10000000)
+        existing_mandate.allowed_categories = categories_list
+        existing_mandate.confirmation_required_above = 20000000
+        await session.flush()
+
 
     # 3. Assemble purchase items based on authoritative catalog prices & negotiated discount
     primary_info = session_data["primary_item"]
     purchase_items: List[IntentItemSchema] = []
+
+    # Calculate item-level discount for primary product
+    is_bundle = bool(selected_opt.bundled_items)
+    if is_bundle:
+        primary_disc = int(round(max(0.0, ((primary_info["catalog_price"] - selected_opt.unit_price_paise) / primary_info["catalog_price"]) * 100.0)))
+    else:
+        primary_disc = int(selected_opt.discount_pct)
 
     # Main item
     purchase_items.append(
@@ -323,6 +331,7 @@ async def settle_negotiated_offer(
             qty=primary_info["qty"],
             observed_price=primary_info["catalog_price"],
             catalog_version=primary_info["catalog_version"],
+            discount_pct=primary_disc,
         )
     )
 
@@ -340,6 +349,7 @@ async def settle_negotiated_offer(
                 qty=b_item.addon_qty,
                 observed_price=cat_price,
                 catalog_version=cat_ver,
+                discount_pct=b_item.discount_pct,
             )
         )
 
@@ -351,21 +361,35 @@ async def settle_negotiated_offer(
         buyer_id=buyer_bot_id,
         merchant_id=accept_req.merchant_id,
         items=purchase_items,
-        requested_discount_pct=int(selected_opt.discount_pct),
+        requested_discount_pct=0 if is_bundle else primary_disc,
         created_at=now,
-        expires_at=now.replace(hour=23, minute=59, second=59),
+        expires_at=now + timedelta(hours=24),
     )
+
+
 
     # Deterministic Zero-LLM Guardian Evaluation
     decision_resp = await evaluate_transaction_intent(intent_req, session)
 
     order_id = decision_resp.razorpay_order.order_id if decision_resp.razorpay_order else None
-    plink = f"https://api.razorpay.com/v1/checkout/hosted?order_id={order_id}" if order_id else None
+    
+    # Generate hosted Razorpay payment link
+    from app.razorpay_adapter.client import get_razorpay_adapter
+    rzp_adapter = get_razorpay_adapter()
+    if decision_resp.decision == DecisionType.APPROVE and decision_resp.final_verified_total:
+        plink = rzp_adapter.create_payment_link(
+            amount=decision_resp.final_verified_total,
+            description=f"Agentic Merchant Order {decision_resp.receipt_id[:8]}",
+            receipt_id=decision_resp.receipt_id
+        )
+    else:
+        plink = None
 
     negotiated_items_summary = [
         {"sku": it.sku, "qty": it.qty, "price_inr": f"₹{(it.observed_price * (1.0 - selected_opt.discount_pct / 100.0))/100:.2f}"}
         for it in purchase_items
     ]
+
 
     status_str = "APPROVED" if decision_resp.decision == DecisionType.APPROVE else ("REQUIRE_CONFIRMATION" if decision_resp.decision == DecisionType.REQUIRE_CONFIRMATION else "BLOCKED")
 

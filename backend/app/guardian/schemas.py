@@ -12,6 +12,8 @@ class IntentItemSchema(BaseModel):
     observed_price: int = Field(gt=0)
     catalog_version: int = 1
     snapshot_id: Optional[str] = None
+    discount_pct: Optional[int] = None
+
 
 
 class TransactionIntentRequest(BaseModel):

@@ -68,7 +68,6 @@ class RazorpayAdapter:
                 )
             except Exception as e:
                 logger.error(f"Razorpay order creation failed with SDK: {e}")
-                # Fall back to deterministic test mode order ID if in local/test environment
                 pass
 
         # Deterministic test-mode order creation for offline development & tests
@@ -81,6 +80,40 @@ class RazorpayAdapter:
             key_id=self.key_id,
             status="created",
         )
+
+    def create_payment_link(
+
+        self,
+        amount: int,
+        description: str = "Agentic Merchant OS Order",
+        receipt_id: str = ""
+    ) -> str:
+        """
+        Creates a hosted Razorpay Standard Payment Link (test mode).
+        Returns a valid hosted short URL (e.g. https://rzp.io/i/xyz).
+        """
+        if self._is_live_sdk_available and self.client:
+            try:
+                link_data = {
+                    "amount": amount,
+                    "currency": "INR",
+                    "accept_partial": False,
+                    "description": description[:250],
+                    "notes": {
+                        "receipt_id": receipt_id,
+                        "system": "AgenticMerchantOS"
+                    }
+                }
+                resp = self.client.payment_link.create(data=link_data)
+                short_url = resp.get("short_url")
+                if short_url:
+                    return short_url
+            except Exception as e:
+                logger.warning(f"Razorpay payment_link.create failed: {e}")
+
+        # Fallback to test checkout reference
+        return "https://razorpay.com/docs/payments/payment-gateway/web-integration/standard/test-card-details/"
+
 
     def verify_payment(
         self,

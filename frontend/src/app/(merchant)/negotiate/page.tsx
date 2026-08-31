@@ -157,10 +157,12 @@ export default function NegotiationArenaPage() {
     try {
       const settlement = await acceptNegotiatedOffer({
         session_id: rfqResponse.session_id,
+        selected_option_id: optionId,
         option_id: optionId,
         buyer_id: "b_001",
         merchant_id: "m_001",
       });
+
       setSettlementData(settlement);
     } catch (err: any) {
       setErrorMsg(err.message || "Offer settlement failed");
@@ -552,7 +554,14 @@ export default function NegotiationArenaPage() {
                     : `+${(buyerProposedMargin - 15.0).toFixed(1)}% headroom above floor`}
                 </span>
               </div>
+
+              {isFloorBreached && (
+                <div className="mt-2.5 p-2 rounded-xl bg-rose-900/60 border border-rose-500/40 text-[11px] text-rose-200 leading-tight">
+                  ⚠️ <strong>Pricing Agent will reject this bid.</strong> The AI Pricing Agent will counter with a clamped price at <strong>≥15.0% margin</strong> or a bundle sweetener.
+                </div>
+              )}
             </div>
+
 
             {/* Live Catalog vs Proposal Cost Breakdown Table */}
             <div className="bg-slate-50/90 rounded-2xl p-4 border border-slate-200 space-y-2.5">
@@ -1073,7 +1082,19 @@ export default function NegotiationArenaPage() {
                   </div>
 
                   {/* Telemetry Metrics */}
+                  <div className="p-3 rounded-2xl bg-white border border-emerald-200 text-xs space-y-1.5 shadow-2xs">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-mono">
+                      <span className="text-slate-500">
+                        Buyer Bid: <s>₹{buyerTargetTotal.toLocaleString()}</s> ({buyerProposedMargin.toFixed(1)}% margin) ➔ <strong className="text-rose-600">REJECTED ❌</strong>
+                      </span>
+                      <span className="text-emerald-800 font-bold bg-emerald-100 px-2 py-0.5 rounded border border-emerald-200">
+                        Settled Counter-Offer: ₹{(settlementData.final_verified_total_paise / 100).toFixed(2)} ({settlementData.merchant_margin_achieved_pct}% Margin) ➔ APPROVED ✓
+                      </span>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-mono">
+
                     <div className="bg-white p-3.5 rounded-2xl border border-emerald-200 shadow-2xs">
                       <span className="text-slate-500 block text-[10px] uppercase font-bold tracking-wider">
                         Final Settled Total
