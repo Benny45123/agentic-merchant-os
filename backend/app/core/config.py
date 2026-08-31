@@ -70,6 +70,16 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_SECONDS: int = 86400 * 7  # 7 days
 
+    # Telegram Bot Gateway
+    TELEGRAM_BOT_TOKEN: Optional[str] = Field(
+        default=None,
+        description="Telegram Bot API Token from @BotFather"
+    )
+    MERCHANT_API_BASE: str = Field(
+        default="http://localhost:8000",
+        description="Base URL of the Agentic Merchant OS API"
+    )
+
     # Environment
     ENV: Literal["local", "test", "production"] = Field(
         default="local",

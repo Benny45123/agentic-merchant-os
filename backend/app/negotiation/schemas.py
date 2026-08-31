@@ -11,10 +11,11 @@ class RFQItem(BaseModel):
 
 class BuyerMandatePayload(BaseModel):
     buyer_id: str = "b_001"
-    max_amount: int = 2000000  # ₹20,000 default max spend
+    max_amount: int = 10000000  # ₹1,00,000 (1 Lakh) default max spend
     max_quantity_per_item: int = 10
     currency: str = "INR"
     signature: str = "sig_ed25519_buyer_mandate_attestation"
+
 
 
 class RFQRequest(BaseModel):
@@ -65,10 +66,12 @@ class RFQResponse(BaseModel):
 
 class AcceptOfferRequest(BaseModel):
     session_id: str
-    buyer_agent_id: str
+    buyer_agent_id: str = "ai_buyer_agent_procure_42"
     merchant_id: str = "m_001"
-    selected_option_id: str
+    selected_option_id: Optional[str] = None
+    option_id: Optional[str] = None
     buyer_signature: str = "sig_ed25519_buyer_accepted_contract"
+
 
 
 class NegotiationSettlementResponse(BaseModel):

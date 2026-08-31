@@ -181,6 +181,7 @@ async def evaluate_transaction_intent(
             )
             authoritative_subtotal += auth_state.price * item.qty
 
+        item_disc = item.discount_pct if item.discount_pct is not None else intent_req.requested_discount_pct
         resolved_items.append(
             ResolvedItem(
                 sku=item.sku,
@@ -189,7 +190,7 @@ async def evaluate_transaction_intent(
                 cost=auth_state.cost,
                 inventory=auth_state.inventory,
                 category=auth_state.category,
-                discount_pct=intent_req.requested_discount_pct,
+                discount_pct=item_disc,
                 catalog_version=auth_state.catalog_version,
                 snapshot_id=item.snapshot_id,
             )
@@ -204,9 +205,14 @@ async def evaluate_transaction_intent(
         )
     )
 
-    # Compute final verified total with discount applied
-    discount_factor = 1.0 - (intent_req.requested_discount_pct / 100.0)
-    final_verified_total = int(round(authoritative_subtotal * discount_factor))
+    # Compute final verified total with item-level or uniform discount applied
+    item_totals = []
+    for ri in resolved_items:
+        eff_disc = ri.discount_pct if ri.discount_pct is not None else intent_req.requested_discount_pct
+        price_after_disc = int(round(ri.authoritative_price * (1.0 - (eff_disc / 100.0))))
+        item_totals.append(price_after_disc * ri.qty)
+    final_verified_total = sum(item_totals)
+
 
     # --------------------------------------------------------------------------
     # 3. Mandate Engine Check (Pure Function)

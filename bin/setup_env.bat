@@ -52,9 +52,23 @@ if not exist ".env.local" (
         copy ".env.local.example" ".env.local" >nul
     )
 )
-call npm install
+:: Optional Telegram Token Setup
+echo.
+echo ==================================================================
+echo 🤖 Telegram Bot Mobile Gateway Setup
+echo ==================================================================
+set /p OPEN_TG="👉 Open Telegram @BotFather in browser? (Y/N, default N): "
+if /i "%OPEN_TG%"=="Y" (
+    start https://t.me/BotFather
+)
+set /p USER_TG="📝 Paste TELEGRAM_BOT_TOKEN (or press Enter to skip): "
+if not "%USER_TG%"=="" (
+    powershell -Command "(Get-Content '%REPO_ROOT%\backend\.env') -replace '^TELEGRAM_BOT_TOKEN=.*', 'TELEGRAM_BOT_TOKEN=%USER_TG%' | Set-Content '%REPO_ROOT%\backend\.env'"
+    echo ✅ Saved TELEGRAM_BOT_TOKEN to backend\.env
+)
 
 echo.
 echo ==================================================================
 echo 🎉 SETUP COMPLETE! Run 'bin\start.bat' to launch the servers.
 echo ==================================================================
+

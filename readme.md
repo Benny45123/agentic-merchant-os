@@ -82,6 +82,7 @@ Universal scripts are provided in `bin/` for 1-command execution across **macOS,
 | **5. Stop All Running Servers**<br>**Stops all running background servers** and frees ports `:8000` & `:3000`. | `./bin/stop` | `bin\stop` |
 | **6. Run Pytests & Architecture Lint**<br>Runs the full **Pytest suite** (47/47 passing) + **Architecture Import Graph Linter**. | `./bin/test` | `bin\test` |
 | **7. Run 8 E2E Demo Scenarios**<br>Runs all **8 Automated End-to-End Demo Scenarios** (Happy Path, Injection Attack, Price Drift, Underpayment Tampering, Campaign Lifecycle, UAP Machine Checkout, Autopay Breach, A2A Reverse Auction). | `./bin/run_scenarios` | `bin\run_scenarios` |
+| **8. Run Telegram Bot Gateway**<br>Launches real mobile shopping & wholesale bargaining bot (**@agentic_merchant_store_bot**). | `./bin/telegram_bot` | `bin\telegram_bot` |
 
 ---
 
@@ -120,6 +121,7 @@ bin\stop
 
 | Portal / Feature | URL | Description |
 | :--- | :--- | :--- |
+| **🤖 Real Telegram Bot** | [`https://t.me/agentic_merchant_store_bot`](https://t.me/agentic_merchant_store_bot) | **Live on your phone:** Text `@agentic_merchant_store_bot` to browse, bargain, and pay in Razorpay test mode. |
 | **🛍️ Buyer Chat Assistant** | [`http://localhost:3000/chat`](http://localhost:3000/chat) | Natural language shopping, voice input, companion upsells, and Razorpay test checkout. |
 | **🤝 A2A Negotiation Arena** | [`http://localhost:3000/negotiate`](http://localhost:3000/negotiate) | Bilateral reverse auction pricing with dynamic margin gauges and bundle sweeteners. |
 | **📊 Merchant Telemetry** | [`http://localhost:3000/dashboard`](http://localhost:3000/dashboard) | Real-time live financial dashboard with zero hardcoded numbers (SQL aggregated). |
@@ -188,7 +190,24 @@ Add the following to `~/Library/Application Support/Claude/claude_desktop_config
 
 ---
 
+## 📱 Real Mobile Telegram Bot Gateway (`@agentic_merchant_store_bot`)
+
+You and the evaluators can test **real omnichannel mobile agentic commerce** directly from your phone on Telegram!
+
+* **Live Bot Link**: [**https://t.me/agentic_merchant_store_bot**](https://t.me/agentic_merchant_store_bot) (`@agentic_merchant_store_bot`)
+
+### 🌟 Try These Actions on Telegram from Your Phone:
+1. **Interactive Greeting**: Open the bot and send `/start` to view the interactive catalog and quick action buttons.
+2. **Natural Language Search**: Send *"Show me iPhone 15"* or *"Show headphones"*.
+3. **Wholesale Bargaining (A2A)**: Send *"Bargain iPhone 15 to lowest price"*.
+   - The bot triggers the **Merchant Pricing Agent & Guardian**, tests Rule 6 gross margin floor ($\ge 15.0\%$), and formulates the **Sweetener Deal (iPhone 15 + 50% Off MagSafe Charger for ₹66,882.50)**!
+4. **1-Click Razorpay Checkout**: Tap **`[ 🎁 Accept Bundle Deal ]`** ➔ The bot generates a live Razorpay test checkout link to complete payment on mobile!
+5. **Live Real-Time Telemetry**: As soon as you purchase on Telegram, watch your web [**Merchant Dashboard (`/dashboard`)**](http://localhost:3000/dashboard) update live!
+
+---
+
 ## 🎬 8 Automated End-to-End Demo Scenarios
+
 
 Execute the complete automated test suite with one command:
 ```bash

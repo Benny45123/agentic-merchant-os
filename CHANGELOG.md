@@ -6,12 +6,68 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ---
 
+## [1.3.0] - 2026-08-31
+### Added
+- **Real Mobile Telegram Bot Gateway (`@agentic_merchant_store_bot`)**:
+  - Implemented async long-polling Telegram bot daemon (`backend/app/telegram/bot.py` & `handlers.py`) connecting real mobile users directly to the Commerce Agent and Guardian negotiation engine.
+  - Added interactive command handlers (`/start`, `/catalog`, `/help`) with rich inline action keyboards.
+  - Integrated natural language product search, A2A reverse auction bargaining, margin-safe bundle sweeteners, and 1-click Razorpay test payment links directly in Telegram.
+  - Added startup/shutdown hooks in `bin/start.sh`, `bin/stop.sh`, `bin/telegram_bot.sh`, `bin/telegram_bot.bat`, and extensionless `bin/telegram_bot`.
+  - Added interactive `@BotFather` setup step with 1-click browser navigation in both `bin/setup_env.sh` and `bin/setup_env.bat` (Windows).
+  - Configured explicit `PYTHONPATH` module resolution across all shell environments.
+  - Fixed async HTTP calls in `app/telegram/handlers.py` with proper coroutine awaiting.
+  - Enhanced A2A Reverse Auction service (`app/negotiation/service.py`) to formulate margin-floor clamped counter-offers and bundle sweeteners when buyer bids are aggressive.
+  - Enhanced `POST /payments/sync/{order_id}` with multi-check Razorpay verification (order fetch, payments list, recent captured payments, and test fallback).
+  - Implemented `POST /payments/sync/{order_id}` to query Razorpay API / test mode status, mark orders as `PAID`, finalize receipts, and credit store revenue.
+  - Added `[ 🔄 Confirm & Verify Payment ]` button in Telegram Bot so customers can confirm completed payments and trigger immediate revenue crediting to the Merchant Dashboard.
+
+  - Clarified Telegram Bot checkout messages to explicitly indicate `DEAL APPROVED • AWAITING PAYMENT` with `Pending completion by customer` status before Razorpay payment is finalized.
+
+  - Added explicit Buyer Bid Rejection vs Settled Counter-Offer comparison banner on the A2A Negotiation Arena settlement card.
+  - Enhanced the Autonomous Policy Margin Gauge with real-time floor breach notices explaining Pricing Agent counter-offer clamping.
+
+  - Resolved 422 Unprocessable Entity in `/commerce/accept` settlement endpoint by making `selected_option_id` and `option_id` fully interchangeable.
+
+  - Fixed `[object Object]` error rendering in A2A Arena (`api.ts` & `negotiate/page.tsx`) by properly extracting FastAPI validation error details.
+  - Configured dynamic mandate spend ceiling in A2A Arena (`submitRFQ`) ensuring high-value items negotiate smoothly without artificial cap errors.
+
+  - Added Direct Buy option in Telegram bot (`[ 💳 Buy {Product} • ₹{Price} ]`) executing 1-click purchases at full retail price with 0% discount.
+
+  - Enhanced all Telegram inline keyboard buttons with explicit product names and formatted INR prices.
+  - Aligned AI Pricing Agent bundle sweetener discounts to strictly obey the merchant's 20% discount policy ceiling.
+
+  - Set default merchant policy and buyer mandate max order ceilings to ₹1,00,000 (1 Lakh) to support flagship phones (iPhone 15, S24, OnePlus 12R) with 100% strict Guardian validation.
+  - Added item-level discount resolution in `IntentItemSchema` and Guardian evaluation pipeline (`pipeline.py`).
+  - Added `"mobiles"` and hardware categories to buyer mandate allowed list across negotiation engine.
+
+
+  - Fixed datetime expiration calculation in negotiation settlements (`now + timedelta(hours=24)`).
+  - Integrated official Razorpay standard hosted Payment Links (`payment_link.create` / `https://rzp.io/...`) for seamless mobile checkouts.
+
+  - Converted receipt audit links to native in-app Telegram callback drawers (`rcpt:<id>`) complying with Telegram Bot API URL protocol requirements.
+  - Added seamless auto-reconnect logic handling Telegram `409 Conflict` state during rapid restarts.
+
+  - Expanded negotiation buyer mandate spend ceiling (₹2,50,000) and allowed categories to support high-value electronics, phones, and laptops.
+
+
+  - Added strict HTML escaping and automatic plain-text fallback delivery in `app/telegram/bot.py`.
+  - Added architecture documentation `docs/22_TELEGRAM_BOT_OMNICHANNEL_COMMERCE.md`, task specification `agent_tasks/agent_19_telegram_bot.md`, and subagent definition `.agents/agents/telegram-bot-builder/agent.md`.
+
+
+
+
+
+
+
+---
+
 ## [1.2.0] - 2026-08-30
 ### Added
 - **Universal Extensionless CLI Wrappers (`bin/`)**: Created unified entrypoints (`setup_env`, `start`, `stop`, `test`, `simulate_ai_buyer`, `logs`, `run_scenarios`) enabling single-command execution on macOS, Linux, and Git Bash.
 - **Native Windows Batch (`*.bat`) & PowerShell (`*.ps1`) Scripts**: Added dedicated scripts in `bin/` (`setup_env.bat`, `start.bat`, `stop.bat`, `test.bat`, `simulate_ai_buyer.bat`, `start.ps1`, `stop.ps1`) for zero-WSL Windows compatibility.
 - **Root-Level Model Context Protocol (MCP) Config (`.mcp.json`)**: Configured automatic MCP tool discovery for **Claude Code CLI** (`claude`) and **Claude Desktop**.
 - **Comprehensive Cross-Platform Documentation & Architecture Overhaul**: Upgraded `README.md` with visual ASCII architecture flow diagrams, live portal mapping tables, complete MCP tools reference, 8-scenario demo suite breakdown, and cross-platform execution matrices.
+
 
 ---
 

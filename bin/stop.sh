@@ -28,9 +28,19 @@ if [ -f "$LOGS_DIR/frontend.pid" ]; then
     rm -f "$LOGS_DIR/frontend.pid"
 fi
 
-# 2. Force free ports 8000 and 3000
+if [ -f "$LOGS_DIR/telegram_bot.pid" ]; then
+    TGPID=$(cat "$LOGS_DIR/telegram_bot.pid" 2>/dev/null || true)
+    if [ -n "$TGPID" ]; then
+        kill "$TGPID" 2>/dev/null || true
+    fi
+    rm -f "$LOGS_DIR/telegram_bot.pid"
+fi
+
+# 2. Force free ports 8000 and 3000 and cleanup telegram bot processes
 lsof -ti:8000 | xargs kill -9 2>/dev/null || true
 lsof -ti:3000 | xargs kill -9 2>/dev/null || true
+pkill -f "app.telegram.bot" 2>/dev/null || true
 
-echo "✅ All backend (:8000) and frontend (:3000) servers stopped cleanly."
+echo "✅ All backend (:8000), frontend (:3000), and Telegram bot workers stopped cleanly."
 echo "=================================================================="
+

@@ -734,13 +734,15 @@ async def seed_data(session: AsyncSession) -> None:
         merchant_id=DEMO_MERCHANT_ID,
         maximum_discount_pct=20,
         minimum_margin_pct=15,
-        maximum_order_value=2000000,  # ₹20,000.00
+        maximum_order_value=10000000,  # ₹1,00,000.00 (supports flagship phones)
         allowed_products_for_discount=None,
         minimum_stock_to_sell=1,
         version=1,
         created_at=utc_now(),
     )
     session.add(policy)
+
+
 
     # 8. Seed Campaign Policy
     campaign_policy = CampaignPolicy(

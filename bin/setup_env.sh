@@ -264,7 +264,31 @@ if [ -t 0 ]; then
         set_env_key "RAZORPAY_WEBHOOK_SECRET" "$USER_RZP_WH"
         echo "   ✅ Saved RAZORPAY_WEBHOOK_SECRET to backend/.env"
     fi
+    echo ""
+
+    # --------------------------------------------------------------------------
+    # 6.5 Telegram Bot Mobile Gateway Setup
+    # --------------------------------------------------------------------------
+    echo "=================================================================="
+    echo "🤖 [5/5] Telegram Bot Mobile Gateway (@agentic_merchant_store_bot)"
+    echo "=================================================================="
+    echo "Enable real mobile shopping & A2A wholesale bargaining on your phone."
+    echo "  1. Open Telegram and search for @BotFather (or open link below)."
+    echo "  2. Send /newbot, give it a name and username ending in 'bot'."
+    echo "  3. Copy the HTTP API token."
+    echo "=================================================================="
+    read -p "👉 Open Telegram @BotFather in browser/app? [y/N]: " OPEN_TG || true
+    if [[ "$OPEN_TG" =~ ^[Yy]$ ]]; then
+        echo "🚀 Opening @BotFather..."
+        open_url "https://t.me/BotFather"
+    fi
+    read -p "📝 Paste TELEGRAM_BOT_TOKEN (or press Enter to keep default): " USER_TG_TOKEN || true
+    if [ -n "$USER_TG_TOKEN" ]; then
+        set_env_key "TELEGRAM_BOT_TOKEN" "$USER_TG_TOKEN"
+        echo "   ✅ Saved TELEGRAM_BOT_TOKEN to backend/.env"
+    fi
 fi
+
 
 echo ""
 echo "=================================================================="
