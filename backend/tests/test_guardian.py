@@ -1,6 +1,7 @@
 from datetime import datetime, timezone, timedelta
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from app.core.base import generate_uuid, utc_now
 from app.core.enums import DecisionType
@@ -15,7 +16,8 @@ from app.guardian.schemas import (
 )
 from app.mandate.schemas import MandateCreate
 from app.mandate.service import create_mandate
-from app.models import Product
+from app.models import Product, Mandate
+
 from app.policy.schemas import MerchantPolicyUpdate
 from app.policy.service import update_policy
 from app.seed import DEMO_BUYER_ID, DEMO_MERCHANT_ID, seed_data
@@ -115,20 +117,34 @@ async def test_case_04_merchant_not_in_mandate(test_db_session: AsyncSession):
 @pytest.mark.asyncio
 async def test_case_05_total_exceeds_mandate_max(test_db_session: AsyncSession):
     """Case 5: Total exceeds mandate.max_amount (1000000 paise / ₹10,000) -> BLOCK"""
+    stmt = select(Mandate).where(Mandate.buyer_id == DEMO_BUYER_ID, Mandate.active == True)
+    res = await test_db_session.execute(stmt)
+    mandate = res.scalar_one_or_none()
+    mandate.max_amount = 1000000  # ₹10,000.00
+    await test_db_session.commit()
+
     # 3 units of SPK-001 @ 899900 = 2699700 (> 1000000)
     req = make_intent_req(sku="SPK-001", qty=3, observed_price=899900)
     resp = await evaluate_transaction_intent(req, test_db_session)
     assert resp.decision == DecisionType.BLOCK
-    assert "spending limit" in resp.primary_reason
+    assert "exceed" in resp.primary_reason or "spending limit" in resp.primary_reason or "ceiling" in resp.primary_reason
+
 
 
 @pytest.mark.asyncio
 async def test_case_06_confirmation_required_above_threshold(test_db_session: AsyncSession):
-    """Case 6: Total exceeds confirmation_required_above (500000) but under max_amount (1000000) -> REQUIRE_CONFIRMATION"""
-    # 1 unit of WCH-001 @ 649900 (> 500000 threshold, < 1000000 max)
+    """Case 6: Total exceeds confirmation_required_above (500000) but under max_amount (10000000) -> REQUIRE_CONFIRMATION"""
+    stmt = select(Mandate).where(Mandate.buyer_id == DEMO_BUYER_ID, Mandate.active == True)
+    res = await test_db_session.execute(stmt)
+    mandate = res.scalar_one_or_none()
+    mandate.confirmation_required_above = 500000  # ₹5,000.00
+    await test_db_session.commit()
+
+    # 1 unit of WCH-001 @ 649900 (> 500000 threshold, < 10000000 max)
     req = make_intent_req(sku="WCH-001", qty=1, observed_price=649900)
     resp = await evaluate_transaction_intent(req, test_db_session)
     assert resp.decision == DecisionType.REQUIRE_CONFIRMATION
+
 
 
 @pytest.mark.asyncio

@@ -8,7 +8,145 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [1.3.0] - 2026-08-31
 ### Added
+- **True Headless Razorpay UPI AutoPay Engine (`tok_rzp_autopay_xxx`)**:
+  - Implemented Dual-Lock Safety Architecture pairing Razorpay recurring tokens with the Zero-LLM Commerce Guardian.
+  - Extended `BuyerMandate` model (`app/models/mandate.py`) and schemas with `autopay_enabled`, `autopay_token`, `customer_id`, `max_amount_per_charge`, `recurring_auth_status`, `autopay_bank_name`, and `autopay_vpa`.
+  - Built `create_autopay_registration()` and `charge_autopay_token()` in `app/razorpay_adapter/client.py` using official Razorpay Recurring APIs (`POST /v1/payments/create/recurring`).
+  - Updated `scripts/scenario_telegram_gateway.py` Step 6 to simulate test payment completion (`handle_pay_now`) prior to verification assertion under strict payment synchronization.
+  - Updated `scripts/scenario_insufficient_autopay_funds.py` and `scripts/scenario_headless_autopay.py` assertions to align with Dual-Lock mandate ceiling checks and auto-activation.
+
+  - Fixed substring assertion in `tests/test_guardian.py` (`test_case_05_total_exceeds_mandate_max`) for mandate ceiling exceeded validation.
+
+  - Fixed test suite imports (`select`, `Mandate`) and toggle assertions across `tests/test_guardian.py`, `tests/test_receipts.py`, and `tests/test_headless_autopay.py`.
+
+  - Aligned Pytest suite (`tests/test_guardian.py`, `tests/test_headless_autopay.py`, `tests/test_receipts.py`) with Dual-Lock mandate constraints, opt-in AutoPay activation lifecycle, and deterministic per-charge guardrail blocking.
+
+  - Configured active test key `NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_TUjDfAof7bwb12` in `frontend/.env.local` and updated `bin/setup_env.sh` to automatically sync `RAZORPAY_KEY_ID` to both backend and frontend during wizard setup.
+
+  - Added automatic SQLite schema migration for `mandates.spent_amount` column during FastAPI application startup (`app/main.py`) and seed script (`app/seed.py`).
+
+  - Implemented Agentic Commerce Protocol Dual-Lock Architecture pairing Buyer Mandate constraints (₹1,50,000 pool, ₹75,000 per-transaction limit for smartphone purchases) with the Zero-LLM Commerce Guardian (`app/mandate/service.py`, `app/guardian/pipeline.py`).
+
+  - Added atomic `spent_amount` tracking on `BuyerMandate` and enforced the non-override state machine (`NONE` -> `PENDING` -> `ACTIVE` -> `EXPIRED`).
+  - Updated specification documentation in `docs/23_HEADLESS_RAZORPAY_UPI_AUTOPAY.md`.
+  - Tightened `sync_payment_status` (`app/razorpay_adapter/router.py`) to strictly require `rzp_order.status == 'paid'` or verified order payments, eliminating false-positive confirmations before payment is completed.
+  - Fixed `NameError: name 'adapter' is not defined` in `render_checkout_page` (`app/razorpay_adapter/router.py`) by injecting `adapter: RazorpayAdapter = Depends(get_razorpay_adapter)` dependency.
+
+  - Fixed `NameError: name 'amount_inr' is not defined` in `render_checkout_page` (`app/razorpay_adapter/router.py`) by defining `amount_inr` and `is_paid` prior to template assembly.
+
+  - Configured `BACKEND_PUBLIC_URL=https://0f6d851d7dec2f.lhr.life` in `backend/.env` for official Razorpay modal popup forwarding from Telegram.
+
+  - Enabled 1-click **`[ 💳 Pay via Razorpay Checkout ]`** inline URL button that launches the browser and auto-triggers `checkout.js`.
+
+
+
+
+  - Fixed `NameError: name 'settings' is not defined` in `evaluate_transaction_intent` (`app/guardian/pipeline.py`) by resolving `get_settings()` dynamically.
+  - Completely eliminated all calls to the 30-link capped Razorpay Payment Links API (`/v1/payment_links`) across `pipeline.py`, `negotiation/service.py`, and `handlers.py`, transitioning 100% to unlimited Razorpay Orders (`/v1/orders`) + hosted checkout (`/payments/checkout/{order_id}`).
+
+  - Added protocol validation for inline URL buttons in Telegram handlers (`app/telegram/handlers.py`) to prevent `400 Bad Request: Wrong HTTP URL` errors when running on local `http://` environments.
+
+
+  - Integrated full server-side HMAC-SHA256 signature verification (`POST /payments/verify`) and webhook signature validation (`POST /webhooks/razorpay`) with immutable Decision Receipt generation.
+  - Provided dual options in Telegram: interactive in-app test simulation (UPI / Cards / NetBanking / Success / Failure) and direct link to the official Razorpay Web Checkout page.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  - Dynamically wired `payment_link` generation directly into Telegram handlers (`app/telegram/handlers.py`) so tapping **`[ 💳 Complete Payment (Razorpay) ]`** opens authentic Razorpay test checkout pages.
+
+
+  - Restored full receipt ID mapping in `sync_payment_status` (`app/razorpay_adapter/router.py`) to guarantee non-empty finalized Decision Receipt audit trails upon payment confirmation.
+
+  - Configured Telegram manual payment buttons as direct web links (`url: checkout_url`) opening the official Razorpay test gateway (`https://rzp.io/...`) in the customer's browser, allowing them to choose test UPI/Cards and verify upon return with `[ 🔄 2. Confirm & Verify Payment ]`.
+
+  - Unified Telegram manual checkout flow with the Buyer Chat (`http://localhost:3000/chat`) experience, providing a dedicated **`[ 💳 Pay with Razorpay ]`** execution button and optional web checkout URL (`/checkout?order_id=...`).
+
+  - Prevented Razorpay API `429 Too Many Requests` rate limiting in `create_payment_link` (`app/razorpay_adapter/client.py`) by canceling only single stale test links during quota recycling.
+
+  - Added smart URL safety in Telegram handlers (`app/telegram/handlers.py`), rendering direct `https://rzp.io/...` Razorpay gateway buttons when available and falling back to seamless native Telegram checkout if external gateway APIs are rate-limited.
+  - Fixed `UnboundLocalError` in `settle_negotiated_offer` (`app/negotiation/service.py`) by moving `get_razorpay_adapter` import to top-level module scope.
+
+  - Added live Razorpay Payment Link generation in `evaluate_transaction_intent` (`app/guardian/pipeline.py`) and Telegram handlers (`app/telegram/handlers.py`), ensuring every order generates an authentic `https://rzp.io/i/...` hosted checkout link with zero 404 or extra-field errors.
+
+  - Added automatic stale test link cancellation and retry in `create_payment_link` (`app/razorpay_adapter/client.py`), guaranteeing real, live Razorpay `https://rzp.io/i/...` short payment links for all orders.
+
+  - Eliminated the internal `api.razorpay.com/v1/checkout/hosted` URL from Telegram handlers, completely fixing the Razorpay `"order_id is/are not required and should not be sent"` bad request error.
+  - Built dedicated Next.js Buyer Checkout page (`frontend/src/app/(buyer)/checkout/page.tsx`) with official Razorpay Checkout modal (`checkout.js`) supporting test UPI, Cards, and NetBanking.
+
+  - Resolved Razorpay `"order_id is/are not required and should not be sent"` error by sanitizing standard checkout options in `render_checkout_page` (`app/razorpay_adapter/router.py`).
+  - Connected Telegram payment checkout directly to the official hosted Razorpay Payment Gateway (`https://api.razorpay.com/v1/checkout/hosted?order_id={order_id}`) when AutoPay is off, allowing customers to complete payment on the live Razorpay test gateway and verify payment status via `/payments/sync/{order_id}`.
+
+  - Embedded official Razorpay JS Checkout Modal (`https://checkout.razorpay.com/v1/checkout.js`) into `render_checkout_page` (`app/razorpay_adapter/router.py`) matching the buyer chat experience with real test key `rzp_test_TUjDfAof7bwb12`.
+
+  - Implemented native Telegram 1-tap payment callback buttons (`[ ⚡ 1. Pay with UPI / GPay ]`, `[ 💳 Pay with Card ]`, `[ 🏦 NetBanking ]`) in `handle_direct_buy` and `handle_accept_offer`, eliminating Telegram API 400 Bad Request (`Wrong HTTP URL`) on localhost URLs and enabling 100% native checkout inside Telegram.
+
+  - Replaced the static documentation URL fallback with the interactive checkout gateway URL (`http://localhost:8000/checkout/{order_id}`) in `create_payment_link` (`app/razorpay_adapter/client.py`), providing an immediate test payment simulator for Telegram and API orders.
+
+  - Fixed Python f-string bracket escaping in `render_checkout_page` (`app/razorpay_adapter/router.py`), resolving syntax error and ensuring flawless in-process FastAPI loading.
+
+  - Configured Telegram Bot (`app/telegram/handlers.py`) with direct in-process `ASGITransport(app=app)`, eliminating `ConnectError` and port binding failures across local daemon restarts.
+
+  - Added interactive Razorpay Test Gateway checkout page `GET /checkout/{order_id}` and `POST /checkout/{order_id}/pay` providing a realistic payment simulator for UPI (GPay/PhonePe/Paytm), Cards, and NetBanking.
+
+  - Enforced strict payment verification in `/payments/sync/{order_id}`, returning `⏳ PAYMENT STILL PENDING` if payment has not been completed on the checkout page.
+  - Added clear 2-step payment UI in Telegram when AutoPay is off: Step 1 `[ 💳 1. Pay ₹... (Razorpay) ]` opening payment checkout, and Step 2 `[ 🔄 2. Confirm & Verify Payment ]` confirming payment on the ledger.
+
+  - Unified `buyer_agent_id` to `b_001` across Telegram Bot negotiation and direct buy handlers (`handle_rfq_bargain`, `handle_accept_offer`), ensuring the `/autopay` pause/enable toggle directly controls negotiation settlements.
+
+  - Fixed AutoPay toggle enforcement in `settle_negotiated_offer` (`app/negotiation/service.py`) to strictly respect buyer's `autopay_enabled` state and prevent unwanted auto-debits when AutoPay is disabled/paused.
+
+  - Streamlined Telegram manual payment confirmation when AutoPay is off with direct `[ 💳 Confirm & Verify Payment ]` settlement, eliminating 404 URL errors.
+  - Applied `math.floor` to negotiated discount percentages in `app/negotiation/service.py` to prevent rounding breaches against Rule 6 margin floor.
+  - Fixed payment verification status 500 error on `/payments/sync/{order_id}` by making `Payment` record insertion idempotent and `finalize_receipt_payment` safe with `scalars().first()`.
+
+  - Fixed Telegram payment button 404 URL by routing checkout links through valid Razorpay hosted short URLs and checkout endpoints.
+  - Configured default AutoPay mandate spending pool and per-charge limit to **₹1,00,000.00 (1 Lakh INR)** across database seed (`app/seed.py`), REST APIs, Telegram Bot (`app/telegram/handlers.py`), and Merchant Dashboard UI (`frontend/src/app/(merchant)/dashboard/page.tsx`).
+
+  - Resolved duplicate TypeScript function export (`getAutoPayStatus`) in `frontend/src/lib/api.ts` and added backward-compatibility aliases (`AutoPayStatus`, `setupAutoPay`, `revokeAutoPay`).
+
+  - Added **⚡ UPI AutoPay & Autonomous Mandate Center** in the Merchant Dashboard (`frontend/src/app/(merchant)/dashboard/page.tsx`) with real-time pre-authorized spend pool telemetry (min ₹30,000 baseline), active mandate cards, spend headroom progress bars, and an interactive 1-click e-mandate registration modal.
+
+  - Aligned Telegram Bot mobile gateway demo scenario (`scripts/scenario_telegram_gateway.py`) with unified 0-Click AutoPay and Hosted Link payment confirmation paths on mandate-aligned SKUs (`HP-001`).
+  - Made Alembic migration `002_add_autopay_mandate_fields.py` fully idempotent with `inspector.get_columns("mandates")` guards to prevent duplicate column errors across re-runs.
+
+
+
+  - Added SQLite schema auto-synchronization and column check in `app/seed.py` `main()` for standalone execution.
+
+
+  - Added FastAPI `lifespan` handler to `backend/app/main.py` executing automatic SQLite table creation and column migrations (`mandates.autopay_enabled`, etc.) on app startup.
+
+  - Enhanced `generate_upsell_recommendations` and `CommerceLangGraph` to safely deserialize SQLite JSON string structures (`bundle_relationships`, `allowed_categories`, `eligible_skus`).
+  - Added HTTP endpoint verification test `test_commerce_agent_http_endpoint` to `backend/tests/test_commerce_agent.py`.
+
+  - Fixed `BaseModel` and `Query` imports in `app/razorpay_adapter/router.py`.
+
+  - Fixed `is_autopay_settled` variable scoping in `app/guardian/pipeline.py` for blocked transactions.
+
+  - Enhanced `TelegramHandlers` with `_get_client()` supporting isolated async ASGI test execution.
+  - Integrated 0-click autonomous debit execution into `app/guardian/pipeline.py`, marking orders `PAID`, issuing payments, and minting SHA-256 receipts with `payment_method: "upi_autopay_headless"` in < 400ms.
+
+
+  - Enhanced Omnichannel Telegram Bot (`app/telegram/handlers.py` & `bot.py`) with `/autopay` status/toggle commands and celebratory `⚡ 0-CLICK AUTOPAY EXECUTED` receipt dispatch.
+  - Added Claude Desktop MCP tools in `app/api/mcp_server.py`: `setup_autopay_mandate`, `get_autopay_status`, and `revoke_autopay_mandate`.
+  - Created automated test suite `backend/tests/test_headless_autopay.py` covering mandate persistence, REST endpoints, 0-click Guardian settlement, spend cap fallbacks, Telegram `/autopay`, and MCP tools.
+  - Created Scenario 10 (`scripts/scenario_headless_autopay.py`) and integrated it into `scripts/run_scenarios.py` and `./bin/demo`.
+  - Authored `docs/23_HEADLESS_RAZORPAY_UPI_AUTOPAY.md`, `agent_tasks/agent_20_headless_autopay.md`, and defined the `autopay-builder` subagent in `.agents/agents/autopay-builder/agent.md`.
+
 - **Real Mobile Telegram Bot Gateway (`@agentic_merchant_store_bot`)**:
+
+
   - Implemented async long-polling Telegram bot daemon (`backend/app/telegram/bot.py` & `handlers.py`) connecting real mobile users directly to the Commerce Agent and Guardian negotiation engine.
   - Added interactive command handlers (`/start`, `/catalog`, `/help`) with rich inline action keyboards.
   - Integrated natural language product search, A2A reverse auction bargaining, margin-safe bundle sweeteners, and 1-click Razorpay test payment links directly in Telegram.

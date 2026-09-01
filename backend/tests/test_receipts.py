@@ -7,8 +7,9 @@ from app.core.base import generate_uuid, utc_now
 from app.core.enums import DecisionType
 from app.guardian.pipeline import evaluate_transaction_intent
 from app.guardian.schemas import IntentItemSchema, TransactionIntentRequest
-from app.models import Receipt
+from app.models import Receipt, Mandate
 from app.receipts.service import get_receipt, list_receipts, replay
+
 from app.seed import DEMO_BUYER_ID, DEMO_MERCHANT_ID, seed_data
 
 
@@ -51,6 +52,13 @@ async def test_receipt_creation_and_deterministic_replay(test_db_session: AsyncS
     assert replay_approve.replay_decision == "APPROVE"
 
     # 2. Generate a BLOCKED transaction (exceeding mandate limit)
+    stmt = select(Mandate).where(Mandate.buyer_id == DEMO_BUYER_ID, Mandate.active == True)
+    res = await test_db_session.execute(stmt)
+    mandate = res.scalar_one_or_none()
+    if mandate:
+        mandate.max_amount = 1000000  # ₹10,000.00 ceiling
+        await test_db_session.commit()
+
     req_block = TransactionIntentRequest(
         intent_id=generate_uuid(),
         buyer_id=DEMO_BUYER_ID,
@@ -58,7 +66,7 @@ async def test_receipt_creation_and_deterministic_replay(test_db_session: AsyncS
         items=[
             IntentItemSchema(
                 sku="SPK-001",
-                qty=5,  # Exceeds max amount
+                qty=5,  # 5 * 899900 = 4499500 (> 1000000 max amount)
                 observed_price=899900,
                 catalog_version=1,
                 snapshot_id=None,
@@ -70,6 +78,7 @@ async def test_receipt_creation_and_deterministic_replay(test_db_session: AsyncS
     )
     resp_block = await evaluate_transaction_intent(req_block, test_db_session)
     assert resp_block.decision == DecisionType.BLOCK
+
 
     # Replay the blocked receipt
     replay_block = await replay(resp_block.receipt_id, test_db_session)

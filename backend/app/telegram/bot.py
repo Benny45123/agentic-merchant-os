@@ -107,6 +107,36 @@ class TelegramBotService:
                 res = await self.handlers.handle_accept_offer(session_id, option_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
+            elif data.startswith("openrzp:"):
+                order_id = data.split(":", 1)[1]
+                res = await self.handlers.handle_open_razorpay_gateway(order_id)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data.startswith("rzpm:"):
+                parts = data.split(":")
+                order_id = parts[1]
+                method = parts[2] if len(parts) > 2 else "upi"
+                res = await self.handlers.handle_razorpay_test_prompt(order_id, method)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data.startswith("rzpok:"):
+                order_id = data.split(":", 1)[1]
+                res = await self.handlers.handle_pay_now(order_id, "upi")
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data.startswith("rzpno:"):
+                order_id = data.split(":", 1)[1]
+                res = await self.handlers.handle_razorpay_failure(order_id)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data.startswith("paynow:"):
+
+                parts = data.split(":")
+                order_id = parts[1]
+                pay_method = parts[2] if len(parts) > 2 else "upi"
+                res = await self.handlers.handle_pay_now(order_id, pay_method)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
             elif data.startswith("chkpay:"):
                 parts = data.split(":")
                 order_id = parts[1]
@@ -117,6 +147,22 @@ class TelegramBotService:
             elif data.startswith("rcpt:"):
                 receipt_id = data.split(":", 1)[1]
                 res = await self.handlers.handle_receipt_view(receipt_id)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data.startswith("autopay:setup:"):
+
+                amount_inr = int(data.split(":", 2)[2])
+                res = await self.handlers.handle_autopay_setup_amount(amount_inr)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data.startswith("autopay:toggle:"):
+                toggle_action = data.split(":", 2)[2]
+                enable = toggle_action == "on"
+                res = await self.handlers.handle_autopay_toggle(enable)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data == "cmd:autopay":
+                res = await self.handlers.handle_autopay_status()
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
 
@@ -130,8 +176,6 @@ class TelegramBotService:
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             return
-
-
 
         # Handle Standard Messages
         if "message" in update:
@@ -151,6 +195,15 @@ class TelegramBotService:
                 res = await self.handlers.handle_catalog()
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
+            elif text.startswith("/autopay"):
+                if "on" in text.lower():
+                    res = await self.handlers.handle_autopay_toggle(True)
+                elif "off" in text.lower():
+                    res = await self.handlers.handle_autopay_toggle(False)
+                else:
+                    res = await self.handlers.handle_autopay_status()
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
             elif text.startswith("/help"):
                 res = await self.handlers.handle_start(user_name)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
@@ -158,6 +211,7 @@ class TelegramBotService:
             else:
                 res = await self.handlers.handle_text_message(text)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
 
     async def start_polling(self):
         """Starts the long-polling loop against Telegram Bot API."""

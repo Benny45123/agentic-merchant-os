@@ -22,12 +22,25 @@ async def generate_upsell_recommendations(
     if not product or not product.bundle_relationships:
         return []
 
+    import json
+    bundle_rels = product.bundle_relationships
+    if isinstance(bundle_rels, str):
+        try:
+            bundle_rels = json.loads(bundle_rels)
+        except Exception:
+            bundle_rels = []
+
+    if not isinstance(bundle_rels, list):
+        return []
+
     mandate = await get_active_mandate(buyer_id, session)
     policy = await get_active_policy(merchant_id, session)
 
     candidates: List[dict] = []
 
-    for bundle_rel in product.bundle_relationships:
+    for bundle_rel in bundle_rels:
+        if not isinstance(bundle_rel, dict):
+            continue
         rel_sku = bundle_rel.get("related_sku")
         relation = bundle_rel.get("relation", "accessory")
 
@@ -49,8 +62,15 @@ async def generate_upsell_recommendations(
 
         # Check category constraint
         if mandate and mandate.allowed_categories is not None:
-            if rel_state.category.lower() not in [c.lower() for c in mandate.allowed_categories]:
+            cats = mandate.allowed_categories
+            if isinstance(cats, str):
+                try:
+                    cats = json.loads(cats)
+                except Exception:
+                    cats = [cats]
+            if isinstance(cats, list) and rel_state.category.lower() not in [c.lower() for c in cats]:
                 continue
+
 
         # Check margin policy
         if policy and rel_state.cost and rel_state.cost > 0:

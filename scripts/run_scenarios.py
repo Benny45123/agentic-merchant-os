@@ -19,12 +19,13 @@ import demo_uap_agent_buyer
 import scenario_insufficient_autopay_funds
 import scenario_a2a_negotiation
 import scenario_telegram_gateway
+import scenario_headless_autopay
 
 
 def main() -> int:
     base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
     print("\n==================================================================")
-    print(f"🚀 RUNNING ALL 9 END-TO-END SCENARIOS & EDGE CASES against {base_url}")
+    print(f"🚀 RUNNING ALL 10 END-TO-END SCENARIOS & EDGE CASES against {base_url}")
     print("==================================================================")
 
     results = []
@@ -65,6 +66,10 @@ def main() -> int:
     s9 = scenario_telegram_gateway.run_scenario(base_url)
     results.append(("Scenario 9: Omnichannel Telegram Bot Mobile Gateway", s9))
 
+    # Scenario 10: Autonomous Headless Razorpay UPI AutoPay (tok_rzp_autopay_...)
+    s10 = scenario_headless_autopay.run_scenario(base_url)
+    results.append(("Scenario 10: Headless Razorpay UPI AutoPay (0-Click)", s10))
+
     print("\n==================================================================")
     print("📋 SUMMARY RESULTS:")
     print("==================================================================")
@@ -77,11 +82,12 @@ def main() -> int:
 
     print("==================================================================")
     if all_passed:
-        print("🎉 ALL 9 SCENARIOS & EDGE CASES COMPLETED SUCCESSFULLY WITH 100% PASS RATE!")
+        print("🎉 ALL 10 SCENARIOS & EDGE CASES COMPLETED SUCCESSFULLY WITH 100% PASS RATE!")
         return 0
     else:
         print("❌ ONE OR MORE SCENARIOS FAILED.")
         return 1
+
 
 
 

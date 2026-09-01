@@ -170,9 +170,19 @@ async def cart_mutation_node(state: CommerceGraphState, session: AsyncSession = 
         )
         camp_res = await session.execute(camp_stmt) if session else None
         if camp_res:
+            import json
             for camp in camp_res.scalars().all():
-                if sku in (camp.eligible_skus or []):
+                skus = camp.eligible_skus
+                if isinstance(skus, str):
+                    try:
+                        skus = json.loads(skus)
+                    except Exception:
+                        skus = [skus]
+                skus = skus or []
+                if sku in skus:
                     camp_discount_pct = max(camp_discount_pct, camp.discount_pct)
+
+
 
         if camp_discount_pct > 0:
             disc_subtotal = int(cart.subtotal * (1.0 - camp_discount_pct / 100.0))

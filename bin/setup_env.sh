@@ -253,7 +253,16 @@ if [ -t 0 ]; then
     if [ -n "$USER_RZP_KEY" ]; then
         set_env_key "RAZORPAY_KEY_ID" "$USER_RZP_KEY"
         echo "   ✅ Saved RAZORPAY_KEY_ID to backend/.env"
+        if [ -f "$REPO_ROOT/frontend/.env.local" ]; then
+            if grep -q "^NEXT_PUBLIC_RAZORPAY_KEY_ID=" "$REPO_ROOT/frontend/.env.local"; then
+                sed -i.bak "s|^NEXT_PUBLIC_RAZORPAY_KEY_ID=.*|NEXT_PUBLIC_RAZORPAY_KEY_ID=$USER_RZP_KEY|" "$REPO_ROOT/frontend/.env.local" && rm -f "$REPO_ROOT/frontend/.env.local.bak"
+            else
+                echo "NEXT_PUBLIC_RAZORPAY_KEY_ID=$USER_RZP_KEY" >> "$REPO_ROOT/frontend/.env.local"
+            fi
+            echo "   ✅ Synced NEXT_PUBLIC_RAZORPAY_KEY_ID to frontend/.env.local"
+        fi
     fi
+
     read -p "📝 Paste RAZORPAY_KEY_SECRET (press Enter to skip): " USER_RZP_SEC || true
     if [ -n "$USER_RZP_SEC" ]; then
         set_env_key "RAZORPAY_KEY_SECRET" "$USER_RZP_SEC"

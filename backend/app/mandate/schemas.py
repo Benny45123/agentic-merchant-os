@@ -18,11 +18,19 @@ class MandateSchema(BaseModel):
     confirmation_required_above: Optional[int] = None
     signature: Optional[str] = None
     active: bool
+    spent_amount: int = 0
+    autopay_enabled: bool = False
+    autopay_token: Optional[str] = None
+    customer_id: Optional[str] = None
+    max_amount_per_charge: int = 7500000
+    recurring_auth_status: str = "NONE"
+    autopay_bank_name: Optional[str] = None
+    autopay_vpa: Optional[str] = None
     created_at: datetime
 
 
 class MandateCreate(BaseModel):
-    max_amount: int = Field(gt=0, description="Spending ceiling in paise")
+    max_amount: int = Field(default=15000000, gt=0, description="Spending ceiling in paise (e.g. ₹1,50,000)")
     max_quantity_per_item: int = Field(default=5, gt=0)
     allowed_categories: Optional[List[str]] = None
     allowed_merchants: Optional[List[str]] = None
@@ -31,6 +39,16 @@ class MandateCreate(BaseModel):
     expires_at: datetime
     confirmation_required_above: Optional[int] = None
     signature: Optional[str] = None
+    spent_amount: int = 0
+    autopay_enabled: bool = False
+    autopay_token: Optional[str] = None
+    customer_id: Optional[str] = None
+    max_amount_per_charge: int = 7500000
+    recurring_auth_status: str = "NONE"
+    autopay_bank_name: Optional[str] = None
+    autopay_vpa: Optional[str] = None
+
+
 
 
 class MandateCheckItem(BaseModel):

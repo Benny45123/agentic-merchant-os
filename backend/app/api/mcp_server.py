@@ -150,8 +150,63 @@ TOOLS = [
             },
             "required": ["receipt_id"]
         }
+    },
+    {
+        "name": "setup_autopay_mandate",
+        "description": "Register and activate a Headless Razorpay UPI AutoPay recurring e-mandate (tok_rzp_autopay_...). Enables Claude to execute 0-click autonomous purchases within spending caps without asking for OTP.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "buyer_id": {
+                    "type": "string",
+                    "default": "b_001",
+                    "description": "Buyer ID"
+                },
+                "max_amount_paise": {
+                    "type": "integer",
+                    "default": 10000000,
+                    "description": "Maximum mandate spend cap in paise (e.g. 5000000 = ₹50,000.00)"
+                },
+                "vpa": {
+                    "type": "string",
+                    "description": "Optional UPI VPA (e.g. shopper@okhdfcbank)"
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "get_autopay_status",
+        "description": "Retrieve the current active UPI AutoPay token, spend headroom, and recurring mandate authorization status.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "buyer_id": {
+                    "type": "string",
+                    "default": "b_001",
+                    "description": "Buyer ID"
+                }
+            },
+            "required": []
+        }
+    },
+    {
+        "name": "revoke_autopay_mandate",
+        "description": "Revoke or pause an active UPI AutoPay mandate, freezing 0-click autonomous transactions.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "buyer_id": {
+                    "type": "string",
+                    "default": "b_001",
+                    "description": "Buyer ID"
+                }
+            },
+            "required": []
+        }
     }
 ]
+
 
 
 def send_response(response):
@@ -342,6 +397,44 @@ def handle_tool_call(name, args):
                     return {"content": [{"type": "text", "text": json.dumps(data, indent=2)}]}
                 return {"isError": True, "content": [{"type": "text", "text": f"Margin check error: {res.text}"}]}
 
+            elif name == "setup_autopay_mandate":
+                buyer_id = args.get("buyer_id", "b_001")
+                cap = args.get("max_amount_paise", 10000000)
+                vpa = args.get("vpa")
+                res = client.post("/mandates/autopay/setup", json={"buyer_id": buyer_id, "max_amount_paise": cap, "vpa": vpa})
+                if res.status_code == 200:
+                    data = res.json()
+                    out = (
+                        f"⚡ HEADLESS UPI AUTOPAY MANDATE ACTIVATED!\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"• Status: {data['status']} (0-Click Payments Enabled)\n"
+                        f"• Recurring Token: {data['token_id']}\n"
+                        f"• Customer ID: {data['customer_id']}\n"
+                        f"• Monthly Spend Cap: ₹{data['max_amount_paise']/100:.2f}\n"
+                        f"• Linked VPA: {data['vpa']} ({data['bank_name']})\n"
+                        f"• Gate: 100% Deterministic Commerce Guardian Protection\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"🎉 Claude is now authorized to execute autonomous purchases with 0 OTP prompts."
+                    )
+                    return {"content": [{"type": "text", "text": out}]}
+                return {"isError": True, "content": [{"type": "text", "text": f"AutoPay Setup Error: {res.text}"}]}
+
+            elif name == "get_autopay_status":
+                buyer_id = args.get("buyer_id", "b_001")
+                res = client.get("/mandates/autopay/status", params={"buyer_id": buyer_id})
+                if res.status_code == 200:
+                    data = res.json()
+                    return {"content": [{"type": "text", "text": json.dumps(data, indent=2)}]}
+                return {"isError": True, "content": [{"type": "text", "text": f"Error fetching AutoPay status: {res.text}"}]}
+
+            elif name == "revoke_autopay_mandate":
+                buyer_id = args.get("buyer_id", "b_001")
+                res = client.post("/mandates/autopay/revoke", params={"buyer_id": buyer_id})
+                if res.status_code == 200:
+                    data = res.json()
+                    return {"content": [{"type": "text", "text": f"🔒 AutoPay Token Revoked: {data.get('message', '0-Click purchases disabled.')}"}]}
+                return {"isError": True, "content": [{"type": "text", "text": f"Error revoking AutoPay: {res.text}"}]}
+
             elif name == "get_decision_receipt":
                 receipt_id = args["receipt_id"]
                 res = client.get(f"/receipts/{receipt_id}")
@@ -353,6 +446,7 @@ def handle_tool_call(name, args):
                 return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {name}"}]}
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"MCP execution error: {str(e)}"}]}
+
 
 
 def main():

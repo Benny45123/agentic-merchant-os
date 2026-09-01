@@ -754,32 +754,73 @@ async def seed_data(session: AsyncSession) -> None:
     )
     session.add(campaign_policy)
 
-    # 9. Seed Active Buyer Mandate
+    # 9. Seed Active Buyer Mandate with Headless UPI AutoPay (1 Lakh Pool)
     mandate = Mandate(
         mandate_id="mand_001",
         buyer_id=DEMO_BUYER_ID,
-        max_amount=1000000,  # ₹10,000.00
+        max_amount=10000000,  # ₹1,00,000.00 (1 Lakh)
         max_quantity_per_item=5,
         allowed_categories=["audio", "accessories", "wearables", "mobiles", "laptops", "electronics"],
         allowed_merchants=[DEMO_MERCHANT_ID],
         allowed_products=None,
         currency="INR",
         expires_at=utc_now() + timedelta(days=180),
-        confirmation_required_above=500000,  # ₹5,000.00
-        signature=None,
+        confirmation_required_above=5000000,  # ₹50,000.00
+        signature="sig_demo_buyer_mandate_001",
         active=True,
+        autopay_enabled=False,
+        autopay_token="tok_rzp_autopay_demo_01",
+        customer_id="cust_demo_buyer_01",
+        max_amount_per_charge=10000000,  # ₹1,00,000.00 (1 Lakh)
+        recurring_auth_status="INACTIVE",
+        autopay_bank_name="HDFC Bank",
+        autopay_vpa="shopper@okhdfcbank",
         created_at=utc_now(),
     )
+
     session.add(mandate)
+
+
+
 
     await session.commit()
     print("Seed data successfully loaded with Audio, Mobiles, Laptops, Wearables & Accessories!")
 
 
 async def main() -> None:
+    engine = get_engine()
+    async with engine.begin() as conn:
+        from app.core.base import Base
+        await conn.run_sync(Base.metadata.create_all)
+        from sqlalchemy import text
+        try:
+            res = await conn.execute(text("PRAGMA table_info(mandates)"))
+            existing_cols = {row[1] for row in res.fetchall()}
+
+            if "spent_amount" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN spent_amount INTEGER DEFAULT 0"))
+            if "autopay_enabled" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_enabled BOOLEAN DEFAULT 0"))
+            if "autopay_token" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_token VARCHAR(255)"))
+            if "customer_id" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN customer_id VARCHAR(255)"))
+            if "max_amount_per_charge" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN max_amount_per_charge INTEGER DEFAULT 7500000"))
+
+            if "recurring_auth_status" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN recurring_auth_status VARCHAR(50) DEFAULT 'NONE'"))
+            if "autopay_bank_name" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_bank_name VARCHAR(100)"))
+            if "autopay_vpa" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_vpa VARCHAR(255)"))
+        except Exception:
+            pass
+
     async with session_scope() as session:
         await seed_data(session)
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+

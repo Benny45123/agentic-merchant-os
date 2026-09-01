@@ -20,6 +20,8 @@ from app.negotiation.schemas import (
     AcceptOfferRequest,
     NegotiationSettlementResponse,
 )
+from app.razorpay_adapter.client import get_razorpay_adapter
+
 
 logger = logging.getLogger(__name__)
 
@@ -304,6 +306,7 @@ async def settle_negotiated_offer(
 
     if not existing_mandate:
         mand_info = session_data.get("buyer_mandate", {})
+        is_autopay = mand_info.get("autopay_enabled", True)
         mandate = Mandate(
             mandate_id=f"mand_neg_{uuid.uuid4().hex[:8]}",
             buyer_id=buyer_bot_id,
@@ -316,28 +319,40 @@ async def settle_negotiated_offer(
             confirmation_required_above=20000000,
             signature=mand_info.get("signature", "sig_ed25519_procurement_mandate"),
             active=True,
+            autopay_enabled=is_autopay,
+            autopay_token=f"tok_rzp_autopay_{buyer_bot_id[:8]}" if is_autopay else None,
+            customer_id=f"cust_{buyer_bot_id}",
+            max_amount_per_charge=10000000,
+            recurring_auth_status="ACTIVE" if is_autopay else "PAUSED",
+            autopay_bank_name="HDFC Bank (UPI AutoPay)",
+            autopay_vpa=f"{buyer_bot_id}@okhdfcbank",
             created_at=utc_now(),
         )
         session.add(mandate)
         await session.flush()
     else:
-        # Upgrade existing mandate categories and ceiling if needed
+        # Upgrade existing mandate categories and ceiling while preserving buyer's AutoPay toggle
         existing_mandate.max_amount = max(existing_mandate.max_amount or 0, 10000000)
+        existing_mandate.max_amount_per_charge = max(getattr(existing_mandate, "max_amount_per_charge", 0) or 0, 10000000)
         existing_mandate.allowed_categories = categories_list
         existing_mandate.confirmation_required_above = 20000000
         await session.flush()
+
+
 
 
     # 3. Assemble purchase items based on authoritative catalog prices & negotiated discount
     primary_info = session_data["primary_item"]
     purchase_items: List[IntentItemSchema] = []
 
-    # Calculate item-level discount for primary product
+    # Calculate item-level discount for primary product (use floor to prevent margin breach)
+    import math
     is_bundle = bool(selected_opt.bundled_items)
     if is_bundle:
-        primary_disc = int(round(max(0.0, ((primary_info["catalog_price"] - selected_opt.unit_price_paise) / primary_info["catalog_price"]) * 100.0)))
+        primary_disc = int(math.floor(max(0.0, ((primary_info["catalog_price"] - selected_opt.unit_price_paise) / primary_info["catalog_price"]) * 100.0)))
     else:
-        primary_disc = int(selected_opt.discount_pct)
+        primary_disc = int(math.floor(selected_opt.discount_pct))
+
 
     # Main item
     purchase_items.append(
@@ -388,17 +403,12 @@ async def settle_negotiated_offer(
 
     order_id = decision_resp.razorpay_order.order_id if decision_resp.razorpay_order else None
     
-    # Generate hosted Razorpay payment link
-    from app.razorpay_adapter.client import get_razorpay_adapter
-    rzp_adapter = get_razorpay_adapter()
-    if decision_resp.decision == DecisionType.APPROVE and decision_resp.final_verified_total:
-        plink = rzp_adapter.create_payment_link(
-            amount=decision_resp.final_verified_total,
-            description=f"Agentic Merchant Order {decision_resp.receipt_id[:8]}",
-            receipt_id=decision_resp.receipt_id
-        )
-    else:
-        plink = None
+    # Generate hosted Razorpay checkout URL
+    from app.core.config import get_settings
+    settings = get_settings()
+    plink = f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{order_id}" if (decision_resp.decision == DecisionType.APPROVE and order_id) else None
+
+
 
     negotiated_items_summary = [
         {"sku": it.sku, "qty": it.qty, "price_inr": f"₹{(it.observed_price * (1.0 - selected_opt.discount_pct / 100.0))/100:.2f}"}
@@ -420,4 +430,8 @@ async def settle_negotiated_offer(
         negotiated_items=negotiated_items_summary,
         merchant_margin_achieved_pct=selected_opt.projected_gross_margin_pct,
         reason=decision_resp.primary_reason,
+        payment_method=decision_resp.payment_method,
+        headless_autopay=bool(decision_resp.headless_autopay),
+        autopay_payment_id=decision_resp.autopay_payment_id,
     )
+

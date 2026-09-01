@@ -103,3 +103,20 @@ async def test_commerce_agent_langgraph_rollback(test_db_session: AsyncSession):
     r4 = await chat(session_id, DEMO_BUYER_ID, "revert", DEMO_MERCHANT_ID, test_db_session)
     assert len(r4.cart.items) == 0
     assert "Rolled Back" in r4.reply
+
+
+@pytest.mark.asyncio
+async def test_commerce_agent_http_endpoint(test_db_session: AsyncSession):
+    from httpx import AsyncClient, ASGITransport
+    from app.main import app
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        res = await ac.post("/agent/chat", json={
+            "session_id": "test_http_sess_01",
+            "buyer_id": DEMO_BUYER_ID,
+            "message": "Add headphones HP-001 to my cart",
+        })
+        assert res.status_code == 200
+        data = res.json()
+        assert len(data["cart"]["items"]) == 1
+        assert len(data["recommendations"]) > 0
+
