@@ -107,7 +107,30 @@ class TelegramBotService:
                 res = await self.handlers.handle_accept_offer(session_id, option_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
+            elif data.startswith("openrzp:"):
+                order_id = data.split(":", 1)[1]
+                res = await self.handlers.handle_open_razorpay_gateway(order_id)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data.startswith("rzpm:"):
+                parts = data.split(":")
+                order_id = parts[1]
+                method = parts[2] if len(parts) > 2 else "upi"
+                res = await self.handlers.handle_razorpay_test_prompt(order_id, method)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data.startswith("rzpok:"):
+                order_id = data.split(":", 1)[1]
+                res = await self.handlers.handle_pay_now(order_id, "upi")
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+            elif data.startswith("rzpno:"):
+                order_id = data.split(":", 1)[1]
+                res = await self.handlers.handle_razorpay_failure(order_id)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
             elif data.startswith("paynow:"):
+
                 parts = data.split(":")
                 order_id = parts[1]
                 pay_method = parts[2] if len(parts) > 2 else "upi"
@@ -121,13 +144,13 @@ class TelegramBotService:
                 res = await self.handlers.handle_check_payment(order_id, receipt_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
-
             elif data.startswith("rcpt:"):
                 receipt_id = data.split(":", 1)[1]
                 res = await self.handlers.handle_receipt_view(receipt_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             elif data.startswith("autopay:setup:"):
+
                 amount_inr = int(data.split(":", 2)[2])
                 res = await self.handlers.handle_autopay_setup_amount(amount_inr)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))

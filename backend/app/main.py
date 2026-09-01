@@ -25,10 +25,12 @@ async def lifespan(app: FastAPI):
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-        # Check SQLite columns for mandates table to ensure migration from older schema
         try:
             res = await conn.execute(text("PRAGMA table_info(mandates)"))
             existing_cols = {row[1] for row in res.fetchall()}
+            if "spent_amount" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN spent_amount INTEGER DEFAULT 0"))
+
             if "autopay_enabled" not in existing_cols:
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_enabled BOOLEAN DEFAULT 0"))
             if "autopay_token" not in existing_cols:
@@ -36,13 +38,14 @@ async def lifespan(app: FastAPI):
             if "customer_id" not in existing_cols:
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN customer_id VARCHAR(255)"))
             if "max_amount_per_charge" not in existing_cols:
-                await conn.execute(text("ALTER TABLE mandates ADD COLUMN max_amount_per_charge INTEGER DEFAULT 1000000"))
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN max_amount_per_charge INTEGER DEFAULT 7500000"))
             if "recurring_auth_status" not in existing_cols:
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN recurring_auth_status VARCHAR(50) DEFAULT 'NONE'"))
             if "autopay_bank_name" not in existing_cols:
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_bank_name VARCHAR(100)"))
             if "autopay_vpa" not in existing_cols:
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_vpa VARCHAR(255)"))
+
         except Exception:
             pass
 

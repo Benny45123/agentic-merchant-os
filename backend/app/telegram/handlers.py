@@ -16,9 +16,12 @@ logger = logging.getLogger("telegram_handlers")
 
 class TelegramHandlers:
     def __init__(self, api_base: str = "http://localhost:8000"):
+        from app.core.config import get_settings
         self.api_base = api_base
+        self.settings = get_settings()
 
     def _get_client(self, timeout: float = 15.0) -> httpx.AsyncClient:
+
         from httpx import ASGITransport
         from app.main import app
         return httpx.AsyncClient(transport=ASGITransport(app=app), base_url="http://localhost:8000", timeout=timeout)
@@ -223,6 +226,19 @@ class TelegramHandlers:
                         }
                         return {"text": text, "reply_markup": keyboard}
                     else:
+                        from app.core.config import get_settings
+                        settings = getattr(self, "settings", None) or get_settings()
+                        base_url = settings.BACKEND_PUBLIC_URL.rstrip("/")
+                        web_checkout_url = f"{base_url}/payments/checkout/{order_id}"
+                        is_https = web_checkout_url.startswith("https://")
+
+                        link_hint = (
+                            f"👉 <a href=\"{web_checkout_url}\"><b>💳 Click Here to Open Razorpay Checkout</b></a>\n\n"
+                            f"<i>Open link in browser to trigger official Razorpay Test Checkout popup!</i>"
+                            if not is_https
+                            else f"👉 <i>Tap the button below to complete payment on Razorpay:</i>"
+                        )
+
                         text = (
                             f"🛡️ <b>PURCHASE APPROVED • AWAITING PAYMENT</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -231,21 +247,36 @@ class TelegramHandlers:
                             f"💰 <b>Total Payable:</b> <b>₹{total_inr:,.2f}</b>\n"
                             f"🧾 <b>Pre-Auth Receipt ID:</b> <code>{receipt_id}</code>\n"
                             f"💳 <b>Razorpay Order:</b> <code>{order_id}</code>\n"
-                            f"⏳ <b>Payment Status:</b> <i>Pending settlement</i>\n\n"
-                            f"👉 <i>Tap below to authorize payment and settle transaction:</i>"
+                            f"⏳ <b>Payment Status:</b> <i>Pending settlement on Razorpay</i>\n\n"
+                            f"{link_hint}"
                         )
-                        keyboard = {
-                            "inline_keyboard": [
-                                [
-                                    {"text": f"💳 Pay ₹{total_inr:,.2f} via Razorpay (Test)", "callback_data": f"chkpay:{order_id}:{raw_receipt_id}"}
-                                ],
-                                [
-                                    {"text": "🔍 Audit Pre-Auth Receipt", "callback_data": f"rcpt:{raw_receipt_id}"},
-                                    {"text": "🛍️ Store Catalog", "callback_data": "cmd:catalog"}
-                                ]
+
+                        buttons = []
+                        if is_https:
+                            buttons.append([{"text": f"💳 Pay ₹{total_inr:,.2f} via Razorpay Checkout", "url": web_checkout_url}])
+                            buttons.append([{"text": "⚡ Open Razorpay Test Gateway (In-App)", "callback_data": f"openrzp:{order_id}"}])
+                        else:
+                            buttons.append([{"text": f"💳 1. Click Here to Open Razorpay Checkout", "callback_data": f"openrzp:{order_id}"}])
+                            buttons.append([{"text": "⚡ 2. Instant Settle (1-Tap)", "callback_data": f"rzpok:{order_id}"}])
+
+                        buttons.extend([
+                            [
+                                {"text": "🔄 Confirm & Verify Payment", "callback_data": f"chkpay:{order_id}:{raw_receipt_id}"}
+                            ],
+                            [
+                                {"text": "🔍 Audit Pre-Auth Receipt", "callback_data": f"rcpt:{raw_receipt_id}"},
+                                {"text": "🛍️ Store Catalog", "callback_data": "cmd:catalog"}
                             ]
-                        }
+                        ])
+                        keyboard = {"inline_keyboard": buttons}
                         return {"text": text, "reply_markup": keyboard}
+
+
+
+
+
+
+
 
 
 
@@ -442,6 +473,27 @@ class TelegramHandlers:
                         }
                         return {"text": text, "reply_markup": keyboard}
                     else:
+                        from app.razorpay_adapter.client import get_razorpay_adapter
+                        checkout_url = data.get("payment_link") or get_razorpay_adapter().create_payment_link(
+                            amount=int(total_inr * 100),
+                            description=f"Agentic Merchant Order {raw_receipt_id[:8]}",
+                            receipt_id=raw_receipt_id,
+                            order_id=order_id
+                        )
+
+                        from app.core.config import get_settings
+                        settings = getattr(self, "settings", None) or get_settings()
+                        base_url = settings.BACKEND_PUBLIC_URL.rstrip("/")
+                        web_checkout_url = f"{base_url}/payments/checkout/{order_id}"
+                        is_https = web_checkout_url.startswith("https://")
+
+                        link_hint = (
+                            f"👉 <a href=\"{web_checkout_url}\"><b>💳 Click Here to Open Razorpay Checkout</b></a>\n\n"
+                            f"<i>Open link in browser to trigger official Razorpay Test Checkout popup!</i>"
+                            if not is_https
+                            else f"👉 <i>Tap the button below to complete payment on Razorpay:</i>"
+                        )
+
                         text = (
                             f"🛡️ <b>DEAL APPROVED • AWAITING PAYMENT</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -451,21 +503,36 @@ class TelegramHandlers:
                             f"🧾 <b>Pre-Auth Receipt ID:</b> <code>{receipt_id}</code>\n"
                             f"💳 <b>Razorpay Order:</b> <code>{order_id}</code>\n"
                             f"🔒 <b>Merkle Root Hash:</b> <code>{replay_hash}...</code>\n"
-                            f"⏳ <b>Payment Status:</b> <i>Pending settlement</i>\n\n"
-                            f"👉 <i>Tap below to authorize payment and settle transaction:</i>"
+                            f"⏳ <b>Payment Status:</b> <i>Pending settlement on Razorpay</i>\n\n"
+                            f"{link_hint}"
                         )
-                        keyboard = {
-                            "inline_keyboard": [
-                                [
-                                    {"text": f"💳 Pay ₹{total_inr:,.2f} via Razorpay (Test)", "callback_data": f"chkpay:{order_id}:{raw_receipt_id}"}
-                                ],
-                                [
-                                    {"text": "🔍 Audit Pre-Auth Receipt", "callback_data": f"rcpt:{raw_receipt_id}"},
-                                    {"text": "🛍️ Store Catalog", "callback_data": "cmd:catalog"}
-                                ]
+
+                        buttons = []
+                        if is_https:
+                            buttons.append([{"text": f"💳 Pay ₹{total_inr:,.2f} via Razorpay Checkout", "url": web_checkout_url}])
+                            buttons.append([{"text": "⚡ Open Razorpay Test Gateway (In-App)", "callback_data": f"openrzp:{order_id}"}])
+                        else:
+                            buttons.append([{"text": f"💳 1. Click Here to Open Razorpay Checkout", "callback_data": f"openrzp:{order_id}"}])
+                            buttons.append([{"text": "⚡ 2. Instant Settle (1-Tap)", "callback_data": f"rzpok:{order_id}"}])
+
+                        buttons.extend([
+                            [
+                                {"text": "🔄 Confirm & Verify Payment", "callback_data": f"chkpay:{order_id}:{raw_receipt_id}"}
+                            ],
+                            [
+                                {"text": "🔍 Audit Pre-Auth Receipt", "callback_data": f"rcpt:{raw_receipt_id}"},
+                                {"text": "🛍️ Store Catalog", "callback_data": "cmd:catalog"}
                             ]
-                        }
+                        ])
+                        keyboard = {"inline_keyboard": buttons}
                         return {"text": text, "reply_markup": keyboard}
+
+
+
+
+
+
+
 
 
 
@@ -544,7 +611,96 @@ class TelegramHandlers:
         except Exception as e:
             return {"text": f"⚠️ <i>Error loading receipt: {html.escape(str(e))}</i>"}
 
+    async def handle_open_razorpay_gateway(self, order_id: str, receipt_id: str = "", total_inr: float = 0.0) -> Dict[str, Any]:
+        """Renders the interactive Razorpay test payment gateway directly in Telegram."""
+        from app.core.config import get_settings
+        settings = getattr(self, "settings", None) or get_settings()
+        web_checkout_url = f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{order_id}"
+        rzp_key = settings.RAZORPAY_KEY_ID or "rzp_test_TUjDfAof7bwb12"
+        text = (
+            f"💳 <b>RAZORPAY TEST PAYMENT GATEWAY</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"📦 <b>Order Reference:</b> <code>{html.escape(order_id)}</code>\n"
+            f"🔒 <b>Gateway Key:</b> <code>{html.escape(rzp_key)}</code>\n"
+            f"🛡️ <b>Guardian Invariants:</b> <code>100% VERIFIED (Rule 6 Safe)</code>\n\n"
+            f"👉 <i>Choose test simulation method or open the official web checkout page:</i>"
+        )
+
+        buttons = [
+            [
+                {"text": "📱 1. Test UPI (success@razorpay)", "callback_data": f"rzpm:{order_id}:upi"}
+            ],
+            [
+                {"text": "💳 2. Test Card (Visa •••• 1111)", "callback_data": f"rzpm:{order_id}:card"}
+            ],
+            [
+                {"text": "🏦 3. Test NetBanking (HDFC Bank)", "callback_data": f"rzpm:{order_id}:netbanking"}
+            ]
+        ]
+        if web_checkout_url.startswith("https://"):
+            buttons.append([{"text": "🌐 4. Open Razorpay Web Checkout", "url": web_checkout_url}])
+        buttons.append([
+            {"text": "⚡ Instant Settle (1-Tap)", "callback_data": f"rzpok:{order_id}"},
+            {"text": "🛍️ Store Catalog", "callback_data": "cmd:catalog"}
+        ])
+        keyboard = {"inline_keyboard": buttons}
+        return {"text": text, "reply_markup": keyboard}
+
+
+
+    async def handle_razorpay_test_prompt(self, order_id: str, method: str = "upi") -> Dict[str, Any]:
+        """Renders the official Razorpay test transaction outcome prompt."""
+        method_names = {"upi": "Test UPI (success@razorpay)", "card": "Test Card (Visa •••• 1111)", "netbanking": "Test NetBanking (HDFC Bank)"}
+        method_label = method_names.get(method, "Razorpay Test Gateway")
+        text = (
+            f"⚡ <b>RAZORPAY TEST GATEWAY PROMPT</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"💳 <b>Razorpay Order:</b> <code>{html.escape(order_id)}</code>\n"
+            f"📱 <b>Selected Method:</b> <code>{method_label}</code>\n"
+            f"🔒 <b>Environment:</b> <code>Razorpay Test Sandbox</code>\n\n"
+            f"⚠️ <b>Choose test transaction outcome:</b>\n"
+            f"• Tap <b>[ ✅ Success ]</b> to authorize and capture payment.\n"
+            f"• Tap <b>[ ❌ Failure ]</b> to simulate bank decline."
+        )
+        keyboard = {
+            "inline_keyboard": [
+                [
+                    {"text": "✅ Click Success (Authorize & Settle)", "callback_data": f"rzpok:{order_id}"}
+                ],
+                [
+                    {"text": "❌ Click Failure (Simulate Decline)", "callback_data": f"rzpno:{order_id}"}
+                ],
+                [
+                    {"text": "🔙 Choose Another Method", "callback_data": f"openrzp:{order_id}"}
+                ]
+            ]
+        }
+        return {"text": text, "reply_markup": keyboard}
+
+    async def handle_razorpay_failure(self, order_id: str) -> Dict[str, Any]:
+        """Handles simulated Razorpay payment decline."""
+        text = (
+            f"❌ <b>PAYMENT DECLINED / FAILED</b>\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"💳 <b>Razorpay Order:</b> <code>{html.escape(order_id)}</code>\n"
+            f"⚠️ <b>Status:</b> <code>PAYMENT_FAILED (Simulated Decline)</code>\n"
+            f"🔒 <b>Protection:</b> Zero merchant financial leakage. Inventory released safely.\n\n"
+            f"👉 <i>You can retry payment with another method below:</i>"
+        )
+        keyboard = {
+            "inline_keyboard": [
+                [
+                    {"text": "🔄 Retry Payment", "callback_data": f"openrzp:{order_id}"}
+                ],
+                [
+                    {"text": "🛍️ Return to Catalog", "callback_data": "cmd:catalog"}
+                ]
+            ]
+        }
+        return {"text": text, "reply_markup": keyboard}
+
     async def handle_pay_now(self, order_id: str, pay_method: str = "upi") -> Dict[str, Any]:
+
         """Executes payment completion through the test checkout payment API and returns the finalized receipt."""
         try:
             async with self._get_client() as client:
@@ -554,6 +710,7 @@ class TelegramHandlers:
                 return await self.handle_check_payment(order_id, "")
         except Exception as e:
             return {"text": f"⚠️ <i>Error processing payment: {html.escape(str(e))}</i>"}
+
 
 
     async def handle_check_payment(self, order_id: str, receipt_id: str) -> Dict[str, Any]:

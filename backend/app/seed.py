@@ -768,15 +768,16 @@ async def seed_data(session: AsyncSession) -> None:
         confirmation_required_above=5000000,  # ₹50,000.00
         signature="sig_demo_buyer_mandate_001",
         active=True,
-        autopay_enabled=True,
+        autopay_enabled=False,
         autopay_token="tok_rzp_autopay_demo_01",
         customer_id="cust_demo_buyer_01",
         max_amount_per_charge=10000000,  # ₹1,00,000.00 (1 Lakh)
-        recurring_auth_status="ACTIVE",
+        recurring_auth_status="INACTIVE",
         autopay_bank_name="HDFC Bank",
         autopay_vpa="shopper@okhdfcbank",
         created_at=utc_now(),
     )
+
     session.add(mandate)
 
 
@@ -795,6 +796,9 @@ async def main() -> None:
         try:
             res = await conn.execute(text("PRAGMA table_info(mandates)"))
             existing_cols = {row[1] for row in res.fetchall()}
+
+            if "spent_amount" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN spent_amount INTEGER DEFAULT 0"))
             if "autopay_enabled" not in existing_cols:
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_enabled BOOLEAN DEFAULT 0"))
             if "autopay_token" not in existing_cols:
@@ -802,7 +806,8 @@ async def main() -> None:
             if "customer_id" not in existing_cols:
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN customer_id VARCHAR(255)"))
             if "max_amount_per_charge" not in existing_cols:
-                await conn.execute(text("ALTER TABLE mandates ADD COLUMN max_amount_per_charge INTEGER DEFAULT 1000000"))
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN max_amount_per_charge INTEGER DEFAULT 7500000"))
+
             if "recurring_auth_status" not in existing_cols:
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN recurring_auth_status VARCHAR(50) DEFAULT 'NONE'"))
             if "autopay_bank_name" not in existing_cols:

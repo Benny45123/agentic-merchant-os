@@ -79,6 +79,11 @@ class Settings(BaseSettings):
         default="http://localhost:8000",
         description="Base URL of the Agentic Merchant OS API"
     )
+    BACKEND_PUBLIC_URL: str = Field(
+        default="http://localhost:8000",
+        description="Public URL of the backend for hosted checkout and webhooks"
+    )
+
 
     # Environment
     ENV: Literal["local", "test", "production"] = Field(

@@ -213,30 +213,56 @@ def check_mandate(
         )
     )
 
-    # 5. Total Amount Ceiling Check
-    if total_amount > mandate.max_amount:
+    # 5. Per-Transaction Limit Check (Round figured to mobile costs e.g. ₹75,000)
+    max_per_charge = getattr(mandate, "max_amount_per_charge", 7500000) or 7500000
+    if total_amount > max_per_charge:
         checks.append(
             MandateCheckItem(
-                name="mandate.max_amount",
+                name="mandate.max_amount_per_charge",
                 passed=False,
-                detail=f"Total amount {total_amount} paise exceeds mandate limit {mandate.max_amount} paise",
+                detail=f"Order total ₹{total_amount/100:.2f} exceeds max per-transaction limit ₹{max_per_charge/100:.2f}",
             )
         )
         return MandateCheckResult(
             passed=False,
             checks=checks,
-            failure_reason=f"Order total ₹{total_amount/100:.2f} exceeds buyer spending limit ₹{mandate.max_amount/100:.2f}",
+            failure_reason=f"Order total ₹{total_amount/100:.2f} exceeds mandate single-transaction ceiling ₹{max_per_charge/100:.2f}",
         )
 
     checks.append(
         MandateCheckItem(
-            name="mandate.max_amount",
+            name="mandate.max_amount_per_charge",
             passed=True,
-            detail=f"Total amount {total_amount} paise is within max amount {mandate.max_amount} paise",
+            detail=f"Transaction total ₹{total_amount/100:.2f} is within per-charge limit ₹{max_per_charge/100:.2f}",
         )
     )
 
-    # 6. Confirmation Required Above Threshold
+    # 6. Cumulative Spending Ceiling Check (Spent + New <= Max Total)
+    spent = getattr(mandate, "spent_amount", 0) or 0
+    if spent + total_amount > mandate.max_amount:
+        remaining = max(0, mandate.max_amount - spent)
+        checks.append(
+            MandateCheckItem(
+                name="mandate.spending_ceiling",
+                passed=False,
+                detail=f"Cumulative spend ₹{(spent + total_amount)/100:.2f} exceeds total mandate pool ₹{mandate.max_amount/100:.2f} (Remaining: ₹{remaining/100:.2f})",
+            )
+        )
+        return MandateCheckResult(
+            passed=False,
+            checks=checks,
+            failure_reason=f"Mandate ceiling exceeded: ₹{spent/100:.2f} already spent of ₹{mandate.max_amount/100:.2f} pool (Remaining: ₹{remaining/100:.2f})",
+        )
+
+    checks.append(
+        MandateCheckItem(
+            name="mandate.spending_ceiling",
+            passed=True,
+            detail=f"Cumulative spend ₹{(spent + total_amount)/100:.2f} is within pool ₹{mandate.max_amount/100:.2f} (Remaining: ₹{(mandate.max_amount - spent - total_amount)/100:.2f})",
+        )
+    )
+
+    # 7. Confirmation Required Above Threshold
     requires_confirmation = False
     if (
         mandate.confirmation_required_above is not None
@@ -257,3 +283,42 @@ def check_mandate(
         checks=checks,
         failure_reason=None,
     )
+
+
+def can_autopay(mandate: Optional[Mandate], amount: int, now: Optional[datetime] = None) -> tuple[bool, str]:
+    """
+    Deterministic Dual-Lock Evaluation:
+    Evaluates whether autonomous payment is permissible under the active buyer mandate.
+    """
+    if not mandate or not mandate.active:
+        return False, "Mandate is not active"
+
+    now_utc = ensure_utc(now) or utc_now()
+    mandate_expiry = ensure_utc(mandate.expires_at)
+    if mandate_expiry and mandate_expiry < now_utc:
+        return False, f"Mandate expired at {mandate_expiry.strftime('%Y-%m-%d')}"
+
+    if not mandate.autopay_enabled or not mandate.autopay_token:
+        return False, "AutoPay is not enabled on mandate"
+
+    if mandate.recurring_auth_status != "ACTIVE":
+        return False, f"AutoPay recurring status is {mandate.recurring_auth_status} (requires human authorization)"
+
+    max_per_charge = getattr(mandate, "max_amount_per_charge", 7500000) or 7500000
+    if amount > max_per_charge:
+        return False, f"Transaction ₹{amount/100:.2f} exceeds per-charge limit ₹{max_per_charge/100:.2f}"
+
+    spent = getattr(mandate, "spent_amount", 0) or 0
+    if spent + amount > mandate.max_amount:
+        remaining = max(0, mandate.max_amount - spent)
+        return False, f"Transaction ₹{amount/100:.2f} exceeds remaining mandate pool ₹{remaining/100:.2f} (Total: ₹{mandate.max_amount/100:.2f})"
+
+    return True, "Mandate constraints satisfied for autonomous execution"
+
+
+async def record_mandate_spend(mandate: Mandate, amount: int, session: AsyncSession) -> None:
+    """Updates accumulated spend on the active buyer mandate."""
+    mandate.spent_amount = (getattr(mandate, "spent_amount", 0) or 0) + amount
+    await session.flush()
+
+

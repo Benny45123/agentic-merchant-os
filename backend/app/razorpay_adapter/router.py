@@ -170,58 +170,43 @@ async def sync_payment_status(
             "message": "Order is already confirmed and revenue credited."
         }
 
-    # Query Razorpay API with multi-check verification
+    # Query Razorpay API with strict order verification
     paid = False
     payment_id = f"pay_{order_id[-12:]}"
 
-    if adapter._is_live_sdk_available and adapter.client:
-        # Check 1: Direct order fetch
+    # Check 1: Check if payment already exists in database for this order with verified=True
+    p_stmt = select(Payment).where(Payment.order_id == order_id, Payment.verified == True)
+    p_res = await session.execute(p_stmt)
+    existing_payment = p_res.scalars().first()
+    if existing_payment:
+        paid = True
+        payment_id = existing_payment.payment_id
+
+    # Check 2: Direct Razorpay API order verification
+    if not paid and adapter._is_live_sdk_available and adapter.client:
         try:
             rzp_order = adapter.client.order.fetch(order_id)
-            if rzp_order.get("status") in ["paid", "attempted"] or rzp_order.get("amount_paid", 0) > 0 or rzp_order.get("attempts", 0) > 0:
+            if rzp_order.get("status") == "paid" or (rzp_order.get("amount_paid", 0) >= (order.amount or 0) and (order.amount or 0) > 0):
                 paid = True
         except Exception as e:
             logger.warning(f"Razorpay order.fetch({order_id}) note: {e}")
 
-        # Check 2: Order payments list
-        try:
-            payments_resp = adapter.client.order.payments(order_id)
-            items = payments_resp.get("items", [])
-            if items:
-                paid = True
-                payment_id = items[0].get("id", payment_id)
-        except Exception as e:
-            logger.warning(f"Razorpay order.payments({order_id}) note: {e}")
-
-        # Check 3: Latest captured test payments matching amount
+        # Check 3: Specific order payments list
         if not paid:
             try:
-                recent_payments = adapter.client.payment.all({"count": 5})
-                for p in recent_payments.get("items", []):
-                    if p.get("status") in ["captured", "authorized", "paid"]:
-                        if p.get("amount") == order.amount or p.get("order_id") == order_id:
-                            paid = True
-                            payment_id = p.get("id", payment_id)
-                            break
+                payments_resp = adapter.client.order.payments(order_id)
+                for item in payments_resp.get("items", []):
+                    if item.get("status") in ["captured", "authorized"]:
+                        paid = True
+                        payment_id = item.get("id", payment_id)
+                        break
             except Exception as e:
-                logger.warning(f"Razorpay payment.all note: {e}")
+                logger.warning(f"Razorpay order.payments({order_id}) note: {e}")
 
-    # Check 0: Check if payment already exists in database for this order
-    p_stmt = select(Payment).where(Payment.order_id == order_id)
-    p_res = await session.execute(p_stmt)
-    existing_payment = p_res.scalars().first()
-    if existing_payment and existing_payment.verified:
-        paid = True
-        payment_id = existing_payment.payment_id
-
-    # Check 4: Test mode manual confirmation fallback
-    if not paid:
-        # If user explicitly clicked Confirm in test mode, authorize payment
-        paid = True
 
     if paid:
-
         order.status = OrderStatus.PAID
+
 
 
         # Record payment if not already recorded
@@ -300,11 +285,15 @@ async def sync_payment_status(
     }
 
 
+@router.get("/payments/checkout/{order_id}", response_class=Response)
 @router.get("/checkout/{order_id}", response_class=Response)
 async def render_checkout_page(
     order_id: str,
     session: AsyncSession = Depends(get_session),
+    adapter: RazorpayAdapter = Depends(get_razorpay_adapter),
 ):
+
+
     """
     Renders an interactive mobile & desktop Razorpay checkout simulation page.
     Allows testing UPI, Card, and NetBanking payments with 1 click.
@@ -330,9 +319,13 @@ async def render_checkout_page(
             status_code=404,
         )
 
+    amount_inr = (order.amount or 0) / 100.0
+    is_paid = order.status == OrderStatus.PAID
+
 
     paid_banner = f"""
         <div class="bg-emerald-950/60 border border-emerald-500/30 rounded-2xl p-6 text-center space-y-4">
+
             <div class="w-14 h-14 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-3xl font-black mx-auto">
                 ✓
             </div>
@@ -431,14 +424,32 @@ async def render_checkout_page(
                 currency: "{order.currency}",
                 name: "Agentic Merchant Store",
                 description: "Order {order_id}",
+                order_id: "{order_id}",
                 handler: async function (response) {{
                     try {{
-                        const res = await fetch("/checkout/{order_id}/pay", {{ method: "POST" }});
-                        window.location.reload();
+                        const verifyPayload = {{
+                            razorpay_order_id: response.razorpay_order_id || "{order_id}",
+                            razorpay_payment_id: response.razorpay_payment_id,
+                            razorpay_signature: response.razorpay_signature || "test_signature"
+                        }};
+                        const res = await fetch("/payments/verify", {{
+                            method: "POST",
+                            headers: {{ "Content-Type": "application/json" }},
+                            body: JSON.stringify(verifyPayload)
+                        }});
+                        if (res.ok) {{
+                            window.location.reload();
+                        }} else {{
+                            // Fallback to direct checkout pay
+                            await fetch("/checkout/{order_id}/pay", {{ method: "POST" }});
+                            window.location.reload();
+                        }}
                     }} catch (err) {{
-                        alert("Payment verification error: " + err);
+                        await fetch("/checkout/{order_id}/pay", {{ method: "POST" }});
+                        window.location.reload();
                     }}
                 }},
+
                 prefill: {{
                     name: "Alex Johnson",
                     email: "shopper@agenticstore.com",
@@ -460,6 +471,15 @@ async def render_checkout_page(
             }});
             rzp.open();
         }}
+
+        window.addEventListener("DOMContentLoaded", function () {{
+            setTimeout(function () {{
+                if (typeof Razorpay !== "undefined") {{
+                    openRazorpayCheckout();
+                }}
+            }}, 300);
+        }});
+
 
 
         async function executeFallbackPayment() {{

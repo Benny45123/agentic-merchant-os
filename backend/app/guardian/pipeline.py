@@ -359,18 +359,14 @@ async def evaluate_transaction_intent(
             key_id=rzp_order.key_id,
         )
 
-        # Check if buyer has active Headless UPI AutoPay recurring token
+        # Check if buyer has active Headless UPI AutoPay recurring token satisfying all mandate constraints
+        from app.mandate.service import can_autopay, record_mandate_spend
+        is_autopay_allowed, autopay_reason = can_autopay(active_mandate, final_verified_total, now)
         is_autopay_settled = False
         autopay_payment_id = None
 
-        if (
-            active_mandate 
-            and getattr(active_mandate, "autopay_enabled", False) 
-            and getattr(active_mandate, "autopay_token", None) 
-            and getattr(active_mandate, "recurring_auth_status", "NONE") == "ACTIVE"
-            and final_verified_total <= getattr(active_mandate, "max_amount_per_charge", active_mandate.max_amount)
-        ):
-            # Execute 0-Click Headless Charge
+        if is_autopay_allowed and active_mandate and active_mandate.autopay_token:
+            # Execute 0-Click Headless Charge via Razorpay recurring rail
             autopay_res = adapter.charge_autopay_token(
                 customer_id=getattr(active_mandate, "customer_id", None) or f"cust_{intent_req.buyer_id}",
                 token_id=active_mandate.autopay_token,
@@ -383,17 +379,19 @@ async def evaluate_transaction_intent(
                 is_autopay_settled = True
                 autopay_payment_id = autopay_res.get("payment_id")
                 order_status = OrderStatus.PAID
+                await record_mandate_spend(active_mandate, final_verified_total, session)
                 checks.append(
                     GuardianCheckSchema(
                         name="payment.autopay_headless",
                         passed=True,
-                        detail=f"0-Click UPI AutoPay executed headlessly ({autopay_payment_id}) via token {active_mandate.autopay_token}",
+                        detail=f"0-Click UPI AutoPay executed headlessly ({autopay_payment_id}) via token {active_mandate.autopay_token}. Mandate spend updated.",
                     )
                 )
             else:
                 order_status = OrderStatus.CREATED
         else:
             order_status = OrderStatus.CREATED
+
 
         # Mirror in Order table with campaign attribution
         order_row = Order(
@@ -496,15 +494,12 @@ async def evaluate_transaction_intent(
     await session.commit()
 
     # Generate official Razorpay payment link for manual checkout
-    payment_link = None
-    if overall_decision == DecisionType.APPROVE and final_total_output and not is_autopay_settled:
-        rzp_adapter = get_razorpay_adapter()
-        payment_link = rzp_adapter.create_payment_link(
-            amount=final_total_output,
-            description=f"Agentic Merchant Order {receipt.receipt_id[:8]}",
-            receipt_id=receipt.receipt_id,
-            order_id=created_order_id or receipt.receipt_id,
-        )
+    payment_link: Optional[str] = None
+    if overall_decision == DecisionType.APPROVE and final_total_output and not is_autopay_settled and created_order_id:
+        from app.core.config import get_settings
+        settings = get_settings()
+        payment_link = f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{created_order_id}"
+
 
 
     return GuardianDecisionResponse(

@@ -403,18 +403,11 @@ async def settle_negotiated_offer(
 
     order_id = decision_resp.razorpay_order.order_id if decision_resp.razorpay_order else None
     
-    # Generate hosted Razorpay payment link
-    rzp_adapter = get_razorpay_adapter()
-    if decision_resp.decision == DecisionType.APPROVE and decision_resp.final_verified_total:
+    # Generate hosted Razorpay checkout URL
+    from app.core.config import get_settings
+    settings = get_settings()
+    plink = f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{order_id}" if (decision_resp.decision == DecisionType.APPROVE and order_id) else None
 
-        plink = rzp_adapter.create_payment_link(
-            amount=decision_resp.final_verified_total,
-            description=f"Agentic Merchant Order {decision_resp.receipt_id[:8]}",
-            receipt_id=decision_resp.receipt_id,
-            order_id=order_id or decision_resp.receipt_id,
-        )
-    else:
-        plink = None
 
 
     negotiated_items_summary = [
