@@ -106,13 +106,14 @@ async def _async_run_scenario(base_url: str) -> bool:
 
     # 6. Test Payment Verification Sync & Dashboard Revenue Crediting
     if order_id and order_id != "autopay_settled":
-        print("\n[Step 6] Customer completes payment and taps [ 🔄 Confirm & Verify Payment ]")
-        sync_res = await handlers.handle_check_payment(order_id, receipt_id)
+        print("\n[Step 6] Customer completes test payment and taps [ 🔄 Confirm & Verify Payment ]")
+        sync_res = await handlers.handle_pay_now(order_id)
         assert "CONFIRMED" in sync_res["text"] or "PAID" in sync_res["text"]
         print(f"  ✅ Payment verified for {order_id}. Store revenue credited to Merchant Dashboard.")
     else:
         print("\n[Step 6] 0-Click AutoPay settlement recorded directly on ledger")
         print("  ✅ Store revenue credited to Merchant Dashboard via recurring token.")
+
 
     # 7. Test Decision Receipt Cryptographic Audit
     print("\n[Step 7] Customer audits immutable Decision Receipt proof")

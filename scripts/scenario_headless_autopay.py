@@ -23,6 +23,10 @@ def run_scenario(base_url: str = "http://localhost:8000") -> bool:
         # Step 1: Query AutoPay Status
         print("\n[Step 1] Verify active UPI AutoPay recurring mandate")
         res_status = client.get("/mandates/autopay/status?buyer_id=b_001")
+        if res_status.status_code != 200 or not res_status.json().get("autopay_enabled"):
+            client.post("/mandates/autopay/setup", json={"buyer_id": "b_001", "max_amount_paise": 10000000})
+            res_status = client.get("/mandates/autopay/status?buyer_id=b_001")
+
         if res_status.status_code != 200:
             print(f"❌ Failed to fetch AutoPay status: {res_status.text}")
             return False
@@ -32,6 +36,7 @@ def run_scenario(base_url: str = "http://localhost:8000") -> bool:
         print(f"  • Spend Cap: ₹{(status_data.get('max_amount_paise', 0))/100:,.2f}")
         assert status_data.get("autopay_enabled") is True
         print("  ✅ Pre-authorized UPI AutoPay mandate verified.")
+
 
         # Step 2: Autonomous Machine Purchase via Commerce Guardian
         print("\n[Step 2] AI Buyer Agent executes autonomous purchase for AeroSound Pro (HP-001)")

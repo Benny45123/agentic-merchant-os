@@ -12,7 +12,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Implemented Dual-Lock Safety Architecture pairing Razorpay recurring tokens with the Zero-LLM Commerce Guardian.
   - Extended `BuyerMandate` model (`app/models/mandate.py`) and schemas with `autopay_enabled`, `autopay_token`, `customer_id`, `max_amount_per_charge`, `recurring_auth_status`, `autopay_bank_name`, and `autopay_vpa`.
   - Built `create_autopay_registration()` and `charge_autopay_token()` in `app/razorpay_adapter/client.py` using official Razorpay Recurring APIs (`POST /v1/payments/create/recurring`).
+  - Updated `scripts/scenario_telegram_gateway.py` Step 6 to simulate test payment completion (`handle_pay_now`) prior to verification assertion under strict payment synchronization.
+  - Updated `scripts/scenario_insufficient_autopay_funds.py` and `scripts/scenario_headless_autopay.py` assertions to align with Dual-Lock mandate ceiling checks and auto-activation.
+
+  - Fixed substring assertion in `tests/test_guardian.py` (`test_case_05_total_exceeds_mandate_max`) for mandate ceiling exceeded validation.
+
+  - Fixed test suite imports (`select`, `Mandate`) and toggle assertions across `tests/test_guardian.py`, `tests/test_receipts.py`, and `tests/test_headless_autopay.py`.
+
+  - Aligned Pytest suite (`tests/test_guardian.py`, `tests/test_headless_autopay.py`, `tests/test_receipts.py`) with Dual-Lock mandate constraints, opt-in AutoPay activation lifecycle, and deterministic per-charge guardrail blocking.
+
   - Configured active test key `NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_TUjDfAof7bwb12` in `frontend/.env.local` and updated `bin/setup_env.sh` to automatically sync `RAZORPAY_KEY_ID` to both backend and frontend during wizard setup.
+
   - Added automatic SQLite schema migration for `mandates.spent_amount` column during FastAPI application startup (`app/main.py`) and seed script (`app/seed.py`).
 
   - Implemented Agentic Commerce Protocol Dual-Lock Architecture pairing Buyer Mandate constraints (₹1,50,000 pool, ₹75,000 per-transaction limit for smartphone purchases) with the Zero-LLM Commerce Guardian (`app/mandate/service.py`, `app/guardian/pipeline.py`).

@@ -77,13 +77,14 @@ def run_scenario(base_url: str = "http://localhost:8000") -> bool:
         # Strict Security Assertions
         assert decision["decision"] == "BLOCK", "Expected Guardian to BLOCK due to insufficient Autopay funds"
         assert decision["razorpay_order"] is None, "Razorpay Order MUST NOT be created on insufficient funds!"
-        assert "exceeds" in decision["primary_reason"].lower() or "limit" in decision["primary_reason"].lower()
+        assert "exceed" in decision["primary_reason"].lower() or "limit" in decision["primary_reason"].lower() or "ceiling" in decision["primary_reason"].lower()
 
         # Verify exact failing check
-        failing_check = next((c for c in decision["checks"] if c["name"] == "mandate.max_amount"), None)
-        assert failing_check is not None, "Expected mandate.max_amount check to be evaluated"
-        assert failing_check["passed"] is False, "Expected mandate.max_amount check to FAIL"
+        failing_check = next((c for c in decision["checks"] if c["name"] in ["mandate.max_amount", "mandate.spending_ceiling"]), None)
+        assert failing_check is not None, "Expected mandate spending limit check to be evaluated"
+        assert failing_check["passed"] is False, "Expected mandate spending limit check to FAIL"
         print("  🔍 Failed Check Detail: %s" % failing_check["detail"])
+
 
         # Step 4: Replay Audit Verification
         receipt_id = decision["receipt_id"]
