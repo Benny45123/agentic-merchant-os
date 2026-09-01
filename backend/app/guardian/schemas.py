@@ -51,6 +51,12 @@ class GuardianDecisionResponse(BaseModel):
     receipt_id: str
     razorpay_order: Optional[RazorpayOrderSchema] = None
     high_value_notification: Optional[Dict[str, Any]] = None
+    payment_method: Optional[str] = "razorpay_modal"
+    headless_autopay: Optional[bool] = False
+    autopay_payment_id: Optional[str] = None
+    payment_link: Optional[str] = None
+
+
 
 
 class CampaignProposalRequest(BaseModel):

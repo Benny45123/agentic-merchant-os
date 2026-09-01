@@ -53,11 +53,19 @@ async def create_mandate(
         confirmation_required_above=data.confirmation_required_above,
         signature=data.signature,
         active=True,
+        autopay_enabled=data.autopay_enabled,
+        autopay_token=data.autopay_token,
+        customer_id=data.customer_id,
+        max_amount_per_charge=data.max_amount_per_charge,
+        recurring_auth_status=data.recurring_auth_status,
+        autopay_bank_name=data.autopay_bank_name,
+        autopay_vpa=data.autopay_vpa,
         created_at=utc_now(),
     )
     session.add(mandate)
     await session.flush()
     return mandate
+
 
 
 def check_mandate(

@@ -35,6 +35,16 @@ class Mandate(Base, TimestampMixin):
     signature: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False, index=True)
 
+    # Headless Razorpay UPI AutoPay Fields
+    autopay_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    autopay_token: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, index=True)
+    customer_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    max_amount_per_charge: Mapped[int] = mapped_column(Integer, default=10000000, nullable=False)
+    recurring_auth_status: Mapped[str] = mapped_column(String(32), default="NONE", nullable=False)
+    autopay_bank_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    autopay_vpa: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+
     # Relationships
     buyer: Mapped["Buyer"] = relationship("Buyer", back_populates="mandates")
+
     decisions: Mapped[List["GuardianDecision"]] = relationship("GuardianDecision", back_populates="mandate")

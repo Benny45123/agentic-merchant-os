@@ -86,3 +86,7 @@ class NegotiationSettlementResponse(BaseModel):
     negotiated_items: List[Dict[str, Any]]
     merchant_margin_achieved_pct: float
     reason: str
+    payment_method: Optional[str] = "razorpay_modal"
+    headless_autopay: bool = False
+    autopay_payment_id: Optional[str] = None
+

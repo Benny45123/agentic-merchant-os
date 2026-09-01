@@ -18,6 +18,13 @@ class MandateSchema(BaseModel):
     confirmation_required_above: Optional[int] = None
     signature: Optional[str] = None
     active: bool
+    autopay_enabled: bool = False
+    autopay_token: Optional[str] = None
+    customer_id: Optional[str] = None
+    max_amount_per_charge: int = 10000000
+    recurring_auth_status: str = "NONE"
+    autopay_bank_name: Optional[str] = None
+    autopay_vpa: Optional[str] = None
     created_at: datetime
 
 
@@ -31,6 +38,14 @@ class MandateCreate(BaseModel):
     expires_at: datetime
     confirmation_required_above: Optional[int] = None
     signature: Optional[str] = None
+    autopay_enabled: bool = False
+    autopay_token: Optional[str] = None
+    customer_id: Optional[str] = None
+    max_amount_per_charge: int = 10000000
+    recurring_auth_status: str = "NONE"
+    autopay_bank_name: Optional[str] = None
+    autopay_vpa: Optional[str] = None
+
 
 
 class MandateCheckItem(BaseModel):

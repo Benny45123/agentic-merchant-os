@@ -7,6 +7,11 @@ import {
   RevenueAnalytics,
   getRevenueAnalytics,
   listReceipts,
+  AutoPayAllResponse,
+  AutoPayMandateItem,
+  listAllAutoPayMandates,
+  setupAutoPayMandate,
+  revokeAutoPayMandate,
 } from "@/lib/api";
 import {
   TrendingUp,
@@ -30,16 +35,36 @@ import {
   ArrowUpDown,
   FileCheck2,
   ShoppingBag,
+  CreditCard,
+  Sparkles,
+  Plus,
+  ExternalLink,
+  ChevronRight,
+  Sliders,
+  X,
+  DollarSign,
+  Wallet,
 } from "lucide-react";
 
 export default function MerchantDashboardPage() {
   const [merchantId] = useState("m_001");
   const [analytics, setAnalytics] = useState<RevenueAnalytics | null>(null);
   const [receipts, setReceipts] = useState<ReceiptData[]>([]);
+  const [autopayData, setAutopayData] = useState<AutoPayAllResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
   const [autoRefresh, setAutoRefresh] = useState(true);
   
+  // AutoPay Mandate Modal & State
+  const [showSetupModal, setShowSetupModal] = useState(false);
+  const [mandateAmountInr, setMandateAmountInr] = useState(100000);
+  const [mandateVpa, setMandateVpa] = useState("shopper@okhdfcbank");
+  const [mandateBank, setMandateBank] = useState("HDFC Bank (UPI AutoPay)");
+  const [settingUp, setSettingUp] = useState(false);
+  const [setupSuccess, setSetupSuccess] = useState<any | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+
   // Interactive filters
   const [searchQuery, setSearchQuery] = useState("");
   const [decisionFilter, setDecisionFilter] = useState<"ALL" | "APPROVE" | "BLOCK" | "REQUIRE_CONFIRMATION">("ALL");
@@ -49,12 +74,14 @@ export default function MerchantDashboardPage() {
   const loadData = async (isManual = false) => {
     if (isManual) setLoading(true);
     try {
-      const [analyticsData, receiptsData] = await Promise.all([
+      const [analyticsData, receiptsData, autopayRes] = await Promise.all([
         getRevenueAnalytics(merchantId),
         listReceipts(merchantId),
+        listAllAutoPayMandates().catch(() => null),
       ]);
       setAnalytics(analyticsData);
       setReceipts(receiptsData.receipts || []);
+      if (autopayRes) setAutopayData(autopayRes);
       setLastRefreshed(new Date());
     } catch (err: any) {
       console.error("Failed to load dashboard data:", err);
@@ -62,6 +89,7 @@ export default function MerchantDashboardPage() {
       setLoading(false);
     }
   };
+
 
   useEffect(() => {
     loadData(true);
@@ -229,23 +257,23 @@ export default function MerchantDashboardPage() {
         </div>
       </div>
 
-      {/* Primary Financial Metric Cards */}
+      {/* Top 4 KPI Metrics */}
       {analytics ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {/* Card 1: Total Store Revenue */}
+          {/* Card 1: Store Revenue */}
           <div className="glass-card p-6 rounded-2xl border border-slate-200/90 relative overflow-hidden group">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                Total Store Revenue
+                Store Revenue
               </span>
               <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
                 <TrendingUp className="w-5 h-5" />
               </div>
             </div>
             <div className="text-3xl font-black text-slate-900 tracking-tight">
-              ₹{(analytics.total_revenue / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              ₹{(analytics.store_revenue / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
             </div>
-            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
               <span className="text-emerald-700 font-semibold flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                 {analytics.order_count} Verified Orders
@@ -330,6 +358,376 @@ export default function MerchantDashboardPage() {
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="h-36 rounded-2xl shimmer-box border border-slate-200"></div>
           ))}
+        </div>
+      )}
+
+
+      {/* ⚡ HEADLESS RAZORPAY UPI AUTOPAY & AUTONOMOUS MANDATE CENTER */}
+      <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 sm:p-8 text-white border border-indigo-500/30 shadow-2xl relative overflow-hidden space-y-6">
+        {/* Glow Accents */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Section Header */}
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 border-b border-white/10 pb-6">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-black shadow-lg shadow-orange-500/30">
+              <Zap className="w-6 h-6 fill-slate-950" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  Headless UPI AutoPay &amp; Autonomous Mandates
+                </h2>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  Zero-OTP AI Commerce
+                </span>
+              </div>
+              <p className="text-slate-400 text-xs mt-0.5">
+                Shopper authorizes a 1-time spending pool (min ₹30,000); AI agents negotiate and settle sub-second purchases headlessly.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => {
+              setSetupSuccess(null);
+              setShowSetupModal(true);
+            }}
+            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 text-slate-950 font-black text-xs shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all hover:scale-105 self-start lg:self-auto"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>Register New AutoPay Mandate</span>
+          </button>
+        </div>
+
+        {/* Telemetry Strip */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              Active Recurring Tokens
+            </span>
+            <div className="text-2xl font-black text-white mt-1 flex items-baseline gap-2">
+              <span>{autopayData?.summary.active_mandates || 1}</span>
+              <span className="text-xs font-semibold text-emerald-400">● Live on Razorpay</span>
+            </div>
+            <span className="text-[11px] text-slate-400 mt-2 block font-mono">
+              Token ID: {autopayData?.mandates?.[0]?.token_id?.substring(0, 16) || "tok_rzp_autopay_..."}...
+            </span>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              Total Pre-Authorized Pool
+            </span>
+            <div className="text-2xl font-black text-amber-400 mt-1 font-mono">
+              ₹{((autopayData?.mandates?.[0]?.max_amount_paise || 3000000) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </div>
+            <span className="text-[11px] text-slate-400 mt-2 block">
+              Min ₹30,000.00 e-mandate baseline
+            </span>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              Autonomous Debited Volume
+            </span>
+            <div className="text-2xl font-black text-emerald-400 mt-1 font-mono">
+              ₹{((autopayData?.mandates?.[0]?.total_spent_paise || 0) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </div>
+            <span className="text-[11px] text-slate-400 mt-2 block">
+              0 OTP prompts • Sub-350ms settle
+            </span>
+          </div>
+
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-sm">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              Remaining Spend Headroom
+            </span>
+            <div className="text-2xl font-black text-indigo-300 mt-1 font-mono">
+              ₹{((autopayData?.mandates?.[0]?.remaining_headroom_paise || 3000000) / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </div>
+            {/* Progress Bar */}
+            <div className="w-full bg-white/10 rounded-full h-1.5 mt-2 overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-emerald-400 to-indigo-400 h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${Math.min(
+                    100,
+                    Math.max(
+                      5,
+                      (((autopayData?.mandates?.[0]?.remaining_headroom_paise || 3000000) /
+                        (autopayData?.mandates?.[0]?.max_amount_paise || 3000000)) *
+                        100)
+                    )
+                  )}%`,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Registered Shopper Mandate Cards / Table */}
+        <div className="bg-slate-950/60 border border-white/10 rounded-2xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+              <Wallet className="w-4 h-4 text-amber-400" />
+              <span>Active Shopper Recurring e-Mandates</span>
+            </span>
+            <span className="text-xs text-slate-400 font-mono">
+              Dual-Lock Commerce Guardian Security Gate
+            </span>
+          </div>
+
+          {autopayData?.mandates && autopayData.mandates.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {autopayData.mandates.map((m) => {
+                const isEnabled = m.autopay_enabled && m.status === "ACTIVE";
+                const poolInr = m.max_amount_paise / 100;
+                const spentInr = m.total_spent_paise / 100;
+                const headroomInr = m.remaining_headroom_paise / 100;
+                const usedPct = poolInr > 0 ? Math.round((spentInr / poolInr) * 100) : 0;
+
+                return (
+                  <div
+                    key={m.mandate_id}
+                    className="bg-white/5 hover:bg-white/[0.08] border border-white/10 rounded-xl p-4.5 space-y-3 transition-all"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm">Shopper ({m.buyer_id})</span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              isEnabled
+                                ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                                : "bg-slate-500/20 text-slate-400 border border-slate-500/40"
+                            }`}
+                          >
+                            {isEnabled ? "ACTIVE 🟢 (0-Click)" : "PAUSED ⚪"}
+                          </span>
+                        </div>
+                        <span className="text-xs font-mono text-slate-400 block">
+                          VPA: <strong className="text-slate-200">{m.vpa}</strong> ({m.bank_name})
+                        </span>
+                      </div>
+
+                      <button
+                        onClick={() => handleToggleMandate(m.buyer_id, isEnabled)}
+                        disabled={togglingId === m.buyer_id}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          isEnabled
+                            ? "bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30"
+                            : "bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30"
+                        }`}
+                      >
+                        {togglingId === m.buyer_id ? "Updating..." : isEnabled ? "Pause" : "Activate"}
+                      </button>
+                    </div>
+
+                    <div className="space-y-1.5 pt-1">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-400">Headroom Balance:</span>
+                        <span className="font-mono font-bold text-emerald-300">
+                          ₹{headroomInr.toLocaleString("en-IN", { minimumFractionDigits: 2 })} / ₹{poolInr.toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-emerald-500 to-indigo-500 h-full rounded-full"
+                          style={{ width: `${Math.max(5, 100 - usedPct)}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
+                        <span>Used: ₹{spentInr.toFixed(2)} ({usedPct}%)</span>
+                        <span>Token: {m.token_id?.substring(0, 14)}...</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+                      <button
+                        onClick={() => {
+                          setMandateAmountInr(m.max_amount_paise / 100);
+                          setSetupSuccess(null);
+                          setShowSetupModal(true);
+                        }}
+                        className="text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1"
+                      >
+                        <Sliders className="w-3.5 h-3.5" />
+                        <span>Edit Spending Pool</span>
+                      </button>
+
+                      <a
+                        href={`https://rzp.io/l/mandate_${m.token_id || "demo"}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs font-medium text-slate-400 hover:text-white flex items-center gap-1"
+                      >
+                        <span>Razorpay e-Mandate Link</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-slate-400 text-xs">
+              No active mandates registered yet. Click &quot;Register New AutoPay Mandate&quot; above.
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* MODAL: REGISTER / EDIT UPI AUTOPAY E-MANDATE */}
+      {showSetupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-slate-900 border border-indigo-500/30 rounded-3xl p-6 sm:p-8 max-w-lg w-full text-white shadow-2xl space-y-6 relative overflow-hidden">
+            {/* Header */}
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-400 to-orange-500 text-slate-950 flex items-center justify-center font-black">
+                  <Zap className="w-5 h-5 fill-slate-950" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white">
+                    Setup UPI AutoPay e-Mandate
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Authorize recurring zero-click AI commerce (Minimum ₹30,000)
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowSetupModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {setupSuccess ? (
+              <div className="space-y-4 py-4 text-center animate-fade-in">
+                <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="w-8 h-8" />
+                </div>
+                <div>
+                  <h4 className="text-lg font-black text-white">
+                    e-Mandate Activated Successfully!
+                  </h4>
+                  <p className="text-xs text-slate-300 mt-1 max-w-sm mx-auto">
+                    Pre-authorized spending pool of <strong className="text-amber-400">₹{(setupSuccess.max_amount_paise / 100).toLocaleString("en-IN", { minimumFractionDigits: 2 })}</strong> is now active.
+                  </p>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-3 font-mono text-xs text-left space-y-1 text-slate-300">
+                  <div>• <b>Token ID:</b> <code>{setupSuccess.token_id}</code></div>
+                  <div>• <b>Linked VPA:</b> <code>{setupSuccess.vpa}</code></div>
+                  <div>• <b>Bank:</b> <code>{setupSuccess.bank_name}</code></div>
+                  <div>• <b>Zero-OTP Status:</b> <span className="text-emerald-400">ACTIVE 🟢</span></div>
+                </div>
+
+                <button
+                  onClick={() => setShowSetupModal(false)}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-indigo-600 font-bold text-white text-sm shadow-lg"
+                >
+                  Done &amp; Return to Dashboard
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {/* Amount Selection Chips */}
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block">
+                    Choose Pre-Authorized Mandate Limit (Default ₹1,00,000)
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[100000, 200000, 500000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setMandateAmountInr(amt)}
+                        className={`py-2.5 px-3 rounded-xl text-xs font-black border transition-all ${
+                          mandateAmountInr === amt
+                            ? "bg-amber-400 text-slate-950 border-amber-400 shadow-md shadow-amber-400/20"
+                            : "bg-white/5 text-slate-300 border-white/10 hover:bg-white/10"
+                        }`}
+                      >
+                        ₹{amt.toLocaleString("en-IN")} {amt === 100000 ? "(1 Lakh)" : ""}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+
+                {/* Custom Amount Input */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-400 block">
+                    Or Enter Custom Amount (₹):
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-2.5 text-slate-400 font-bold">₹</span>
+                    <input
+                      type="number"
+                      min={30000}
+                      step={5000}
+                      value={mandateAmountInr}
+                      onChange={(e) => setMandateAmountInr(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="w-full bg-slate-950 border border-white/15 rounded-xl py-2.5 pl-8 pr-4 text-white font-mono font-bold text-sm focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                  {mandateAmountInr < 30000 && (
+                    <span className="text-[11px] text-rose-400">
+                      ⚠️ Mandate must be at least ₹30,000.00 under UPI AutoPay regulations.
+                    </span>
+                  )}
+                </div>
+
+                {/* Bank & VPA */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-400 block">Issuing Bank</label>
+                    <select
+                      value={mandateBank}
+                      onChange={(e) => setMandateBank(e.target.value)}
+                      className="w-full bg-slate-950 border border-white/15 rounded-xl py-2 px-3 text-white text-xs focus:outline-none focus:border-amber-400"
+                    >
+                      <option value="HDFC Bank (UPI AutoPay)">HDFC Bank</option>
+                      <option value="ICICI Bank (UPI AutoPay)">ICICI Bank</option>
+                      <option value="State Bank of India (UPI AutoPay)">State Bank of India</option>
+                      <option value="Axis Bank (UPI AutoPay)">Axis Bank</option>
+                      <option value="Kotak Mahindra (UPI AutoPay)">Kotak Mahindra</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-400 block">Linked UPI VPA</label>
+                    <input
+                      type="text"
+                      value={mandateVpa}
+                      onChange={(e) => setMandateVpa(e.target.value)}
+                      className="w-full bg-slate-950 border border-white/15 rounded-xl py-2 px-3 text-white text-xs font-mono focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+
+                {/* Info Note */}
+                <div className="bg-amber-400/10 border border-amber-400/20 rounded-xl p-3 text-[11px] text-amber-200/90 leading-relaxed">
+                  🛡️ <b>Dual-Lock Guarantee:</b> Your AI agent is mathematically restricted by the Commerce Guardian to spend only within verified catalog rules. Zero unauthorized debits.
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  onClick={handleSetupMandate}
+                  disabled={settingUp || mandateAmountInr < 30000}
+                  className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-300 hover:to-orange-400 font-black text-slate-950 text-sm shadow-xl shadow-orange-500/20 flex items-center justify-center gap-2 disabled:opacity-50 transition-all hover:scale-[1.02]"
+                >
+                  <Zap className="w-4 h-4 fill-slate-950" />
+                  <span>{settingUp ? "Authorizing e-Mandate..." : `Authorize ₹${mandateAmountInr.toLocaleString("en-IN")} AutoPay Mandate`}</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

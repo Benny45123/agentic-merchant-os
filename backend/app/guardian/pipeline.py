@@ -45,6 +45,9 @@ async def evaluate_transaction_intent(
     requires_confirmation = False
     is_blocked = False
     block_reasons: List[str] = []
+    is_autopay_settled = False
+    autopay_payment_id = None
+
 
     # --------------------------------------------------------------------------
     # 1. Replay & Intent Expiry Checks
@@ -356,6 +359,42 @@ async def evaluate_transaction_intent(
             key_id=rzp_order.key_id,
         )
 
+        # Check if buyer has active Headless UPI AutoPay recurring token
+        is_autopay_settled = False
+        autopay_payment_id = None
+
+        if (
+            active_mandate 
+            and getattr(active_mandate, "autopay_enabled", False) 
+            and getattr(active_mandate, "autopay_token", None) 
+            and getattr(active_mandate, "recurring_auth_status", "NONE") == "ACTIVE"
+            and final_verified_total <= getattr(active_mandate, "max_amount_per_charge", active_mandate.max_amount)
+        ):
+            # Execute 0-Click Headless Charge
+            autopay_res = adapter.charge_autopay_token(
+                customer_id=getattr(active_mandate, "customer_id", None) or f"cust_{intent_req.buyer_id}",
+                token_id=active_mandate.autopay_token,
+                amount_paise=final_verified_total,
+                order_id=rzp_order.order_id,
+                receipt_id=decision_id,
+                description=f"AutoPay Order for {intent_req.items[0].sku}",
+            )
+            if autopay_res.get("success"):
+                is_autopay_settled = True
+                autopay_payment_id = autopay_res.get("payment_id")
+                order_status = OrderStatus.PAID
+                checks.append(
+                    GuardianCheckSchema(
+                        name="payment.autopay_headless",
+                        passed=True,
+                        detail=f"0-Click UPI AutoPay executed headlessly ({autopay_payment_id}) via token {active_mandate.autopay_token}",
+                    )
+                )
+            else:
+                order_status = OrderStatus.CREATED
+        else:
+            order_status = OrderStatus.CREATED
+
         # Mirror in Order table with campaign attribution
         order_row = Order(
             order_id=rzp_order.order_id,
@@ -364,11 +403,41 @@ async def evaluate_transaction_intent(
             buyer_id=intent_req.buyer_id,
             amount=final_verified_total,
             currency="INR",
-            status=OrderStatus.CREATED,
+            status=order_status,
             campaign_id=matched_campaign_id,
             created_at=utc_now(),
         )
         session.add(order_row)
+
+        if is_autopay_settled and autopay_payment_id:
+            from app.models.payment import Payment
+            payment_row = Payment(
+                payment_id=autopay_payment_id,
+                order_id=order_row.order_id,
+                status="captured",
+                verified=True,
+                raw_webhook_payload=None,
+                created_at=utc_now(),
+            )
+            session.add(payment_row)
+
+            # Attribute campaign budget if applicable
+            if matched_campaign_id:
+                from app.models.campaign import Campaign, CampaignEvent
+                from app.core.enums import CampaignEventType
+                camp_stmt = select(Campaign).where(Campaign.campaign_id == matched_campaign_id)
+                camp_res = await session.execute(camp_stmt)
+                campaign = camp_res.scalar_one_or_none()
+                if campaign:
+                    campaign.budget_spent += final_verified_total
+                    camp_event = CampaignEvent(
+                        event_id=generate_uuid(),
+                        campaign_id=campaign.campaign_id,
+                        type=CampaignEventType.ORDER_ATTRIBUTED,
+                        detail={"order_id": order_row.order_id, "amount": final_verified_total, "mode": "autopay"},
+                        created_at=utc_now(),
+                    )
+                    session.add(camp_event)
 
     # --------------------------------------------------------------------------
     # 8. Create Immutable Decision Receipt
@@ -426,6 +495,18 @@ async def evaluate_transaction_intent(
 
     await session.commit()
 
+    # Generate official Razorpay payment link for manual checkout
+    payment_link = None
+    if overall_decision == DecisionType.APPROVE and final_total_output and not is_autopay_settled:
+        rzp_adapter = get_razorpay_adapter()
+        payment_link = rzp_adapter.create_payment_link(
+            amount=final_total_output,
+            description=f"Agentic Merchant Order {receipt.receipt_id[:8]}",
+            receipt_id=receipt.receipt_id,
+            order_id=created_order_id or receipt.receipt_id,
+        )
+
+
     return GuardianDecisionResponse(
         decision_id=decision_record.decision_id,
         intent_id=persisted_intent.intent_id,
@@ -436,7 +517,13 @@ async def evaluate_transaction_intent(
         receipt_id=receipt.receipt_id,
         razorpay_order=razorpay_order_payload,
         high_value_notification=high_value_notif_payload,
+        payment_method="upi_autopay_headless" if is_autopay_settled else "razorpay_modal",
+        headless_autopay=is_autopay_settled,
+        autopay_payment_id=autopay_payment_id,
+        payment_link=payment_link,
     )
+
+
 
 
 async def evaluate_campaign_proposal(

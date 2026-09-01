@@ -99,13 +99,14 @@ async def finalize_receipt_payment(
     session: AsyncSession,
 ) -> Optional[Receipt]:
     """Appends confirmed Razorpay payment ID to existing Receipt."""
-    stmt = select(Receipt).where(Receipt.razorpay_order_id == razorpay_order_id)
+    stmt = select(Receipt).where(Receipt.razorpay_order_id == razorpay_order_id).order_by(Receipt.created_at.desc())
     result = await session.execute(stmt)
-    receipt = result.scalar_one_or_none()
+    receipt = result.scalars().first()
     if receipt:
         receipt.razorpay_payment_id = razorpay_payment_id
         await session.flush()
     return receipt
+
 
 
 async def get_receipt(receipt_id: str, session: AsyncSession) -> Optional[Receipt]:
