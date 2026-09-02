@@ -366,31 +366,59 @@ async def evaluate_transaction_intent(
         autopay_payment_id = None
 
         if is_autopay_allowed and active_mandate and active_mandate.autopay_token:
-            # Execute 0-Click Headless Charge via Razorpay recurring rail
-            autopay_res = adapter.charge_autopay_token(
-                customer_id=getattr(active_mandate, "customer_id", None) or f"cust_{intent_req.buyer_id}",
+            # ------------------------------------------------------------------
+            # Live Razorpay Test Mandate Verification Gate
+            # ------------------------------------------------------------------
+            cust_id = getattr(active_mandate, "customer_id", None) or f"cust_{intent_req.buyer_id}"
+            tok_verified, tok_reason, tok_meta = adapter.verify_mandate_token(
+                customer_id=cust_id,
                 token_id=active_mandate.autopay_token,
                 amount_paise=final_verified_total,
-                order_id=rzp_order.order_id,
-                receipt_id=decision_id,
-                description=f"AutoPay Order for {intent_req.items[0].sku}",
             )
-            if autopay_res.get("success"):
-                is_autopay_settled = True
-                autopay_payment_id = autopay_res.get("payment_id")
-                order_status = OrderStatus.PAID
-                await record_mandate_spend(active_mandate, final_verified_total, session)
+
+            if tok_verified:
                 checks.append(
                     GuardianCheckSchema(
-                        name="payment.autopay_headless",
+                        name="mandate.razorpay_verified",
                         passed=True,
-                        detail=f"0-Click UPI AutoPay executed headlessly ({autopay_payment_id}) via token {active_mandate.autopay_token}. Mandate spend updated.",
+                        detail=f"Razorpay Test API verified recurring token ({active_mandate.autopay_token}) active on rail",
                     )
                 )
+                # Execute 0-Click Headless Charge via Razorpay recurring rail
+                autopay_res = adapter.charge_autopay_token(
+                    customer_id=cust_id,
+                    token_id=active_mandate.autopay_token,
+                    amount_paise=final_verified_total,
+                    order_id=rzp_order.order_id,
+                    receipt_id=decision_id,
+                    description=f"AutoPay Order for {intent_req.items[0].sku}",
+                )
+                if autopay_res.get("success"):
+                    is_autopay_settled = True
+                    autopay_payment_id = autopay_res.get("payment_id")
+                    order_status = OrderStatus.PAID
+                    await record_mandate_spend(active_mandate, final_verified_total, session)
+                    checks.append(
+                        GuardianCheckSchema(
+                            name="payment.autopay_headless",
+                            passed=True,
+                            detail=f"0-Click UPI AutoPay executed headlessly ({autopay_payment_id}) via token {active_mandate.autopay_token}. Mandate spend updated.",
+                        )
+                    )
+                else:
+                    order_status = OrderStatus.CREATED
             else:
+                checks.append(
+                    GuardianCheckSchema(
+                        name="mandate.razorpay_verified",
+                        passed=False,
+                        detail=f"Razorpay mandate verification rejected: {tok_reason}",
+                    )
+                )
                 order_status = OrderStatus.CREATED
         else:
             order_status = OrderStatus.CREATED
+
 
 
         # Mirror in Order table with campaign attribution

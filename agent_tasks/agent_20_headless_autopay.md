@@ -20,15 +20,21 @@ Transition Agentic Merchant OS from interactive checkout modals to **True Autono
 
 ### 2. Razorpay Recurring Adapter (`backend/app/razorpay_adapter/`)
 - Implement `create_autopay_registration(buyer_id, max_amount_paise)` in `app/razorpay_adapter/client.py`.
+- Implement `verify_mandate_token(customer_id, token_id)` in `app/razorpay_adapter/client.py` querying Razorpay Test API.
 - Implement `charge_autopay_token(customer_id, token_id, amount_paise, order_id, receipt_id)` in `app/razorpay_adapter/client.py`.
 - Add AutoPay router endpoints in `app/razorpay_adapter/router.py`:
   - `POST /mandates/autopay/setup`
   - `POST /mandates/autopay/revoke`
+  - `GET /mandates/autopay/verify`
 
-### 3. Commerce Guardian AutoPay Settlement (`backend/app/guardian/`)
+### 3. Commerce Guardian AutoPay Settlement & Mandate Gate (`backend/app/guardian/`)
 - In `app/guardian/pipeline.py`:
   - On `APPROVE` decisions, check if buyer has active `autopay_token`.
-  - If active, automatically invoke `charge_autopay_token()`, set `Order.status = OrderStatus.PAID`, and mint Decision Receipt with `payment_method: "upi_autopay_headless"`.
+  - Pass through **Live Razorpay Test Mandate Verification Gate** (`adapter.verify_mandate_token`).
+  - Record deterministic invariant check `mandate.razorpay_verified: PASSED` in the Decision Receipt.
+  - If verified, automatically invoke `charge_autopay_token()`, set `Order.status = OrderStatus.PAID`, and mint Decision Receipt with `payment_method: "upi_autopay_headless"`.
+  - If unverified or rejected by Razorpay, deterministically block or escalate to manual checkout with zero token debits.
+
 
 ### 4. Omnichannel Telegram Bot Integration (`backend/app/telegram/`)
 - In `app/telegram/handlers.py`:
