@@ -67,4 +67,5 @@ yarn-error.log*
 logs/
 *.log
 .claude/
+.agents/
 

@@ -57,6 +57,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Added Scenario 11 (`scripts/scenario_google_ap2_mandates.py`) and integrated it into the 11-scenario end-to-end test runner (`scripts/run_scenarios.py` and `bin/run_scenarios.sh`).
 
 
+### Changed
+- **Comprehensive Documentation & README Overhaul**: Completely updated `README.md` to align with the Razorpay AI Buildathon Track 01 criteria, featuring an interactive quick-navigation matrix using 100% native GitHub Flavored Markdown slug anchors (eliminating raw HTML `<div align="right">` and empty `<a>` tags to guarantee flawless jump navigation and Back to Top links across GitHub web, mobile, and VS Code), futuristic flagship feature spotlights (The 6 Pillars of AMOS), Google AP2 (ES256) dual-chain mandates, Headless UPI AutoPay (`tok_rzp_autopay_...`), the 4-leaf balanced Merkle proof tree visualizer, all 11 end-to-end demo scenarios, and an in-depth "Engineering War Stories" section chronicling the resolution of 12 deep production-grade engineering battles.
+
 ### Fixed
 - **Razorpay Modal "The id provided does not exist" Error**: Removed non-existent client-side `customer_id` and provisioned a real Razorpay test order (`order_id`) for ₹1.00 NPCI test auth.
 - **500 Internal Server Error in `/mandates/autopay/status`**: Initialized `settings = get_settings()` at module scope within router handler.
