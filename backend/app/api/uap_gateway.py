@@ -45,6 +45,9 @@ class MachinePurchaseResponse(BaseModel):
     replay_hash: Optional[str] = None
     reason: Optional[str] = None
     high_value_notification: Optional[Dict[str, Any]] = None
+    headless_autopay: bool = False
+    payment_method: Optional[str] = "razorpay_modal"
+
 
 
 class BundleMarginCheckRequest(BaseModel):
@@ -168,24 +171,35 @@ async def submit_machine_purchase(
     # Deterministic Guardian Evaluation
     decision_resp = await evaluate_transaction_intent(intent_req, session)
 
+    from app.core.config import get_settings
+    settings = get_settings()
+
     if decision_resp.decision == DecisionType.APPROVE:
         order_id = decision_resp.razorpay_order.order_id if decision_resp.razorpay_order else None
-        payment_link = f"https://api.razorpay.com/v1/checkout/hosted?order_id={order_id}" if order_id else None
+        payment_link = decision_resp.payment_link or (f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{order_id}" if order_id else None)
 
         return MachinePurchaseResponse(
             status="APPROVED",
             guardian_decision="APPROVE",
+
             receipt_id=decision_resp.receipt_id,
             final_verified_total=decision_resp.final_verified_total,
             razorpay_order_id=order_id,
             payment_link=payment_link,
+            headless_autopay=decision_resp.headless_autopay,
+            payment_method=decision_resp.payment_method,
             replay_hash=f"sha256_{decision_resp.receipt_id[:16]}",
             reason=decision_resp.primary_reason,
         )
+
     elif decision_resp.decision == DecisionType.REQUIRE_CONFIRMATION:
-        plink = None
-        if decision_resp.high_value_notification:
+        plink = decision_resp.payment_link
+        if not plink and decision_resp.high_value_notification:
             plink = decision_resp.high_value_notification.get("payment_link")
+        if not plink:
+            ref_id = decision_resp.receipt_id
+            plink = f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{ref_id}"
+
         return MachinePurchaseResponse(
             status="REQUIRE_CONFIRMATION",
             guardian_decision="REQUIRE_CONFIRMATION",
@@ -197,6 +211,7 @@ async def submit_machine_purchase(
             replay_hash=f"sha256_{decision_resp.receipt_id[:16]}",
             reason=decision_resp.primary_reason,
         )
+
     else:
         return MachinePurchaseResponse(
             status="BLOCKED",

@@ -145,6 +145,8 @@ async def verify_payment(
 
 
 @router.post("/payments/sync/{order_id}")
+@router.get("/payments/sync/{order_id}")
+@router.get("/payments/order/{order_id}")
 async def sync_payment_status(
     order_id: str,
     session: AsyncSession = Depends(get_session),
@@ -153,13 +155,26 @@ async def sync_payment_status(
     """
     Checks Razorpay API to see if the order/payment_link has been paid by customer.
     If paid, marks Order.status as PAID, updates campaign revenue, and finalizes receipt.
+    Accepts both Razorpay order_id (order_...) and Decision receipt_id UUID.
     """
     stmt = select(Order).where(Order.order_id == order_id)
     result = await session.execute(stmt)
     order = result.scalar_one_or_none()
 
     if not order:
-        raise HTTPException(status_code=404, detail=f"Order '{order_id}' not found")
+        from app.models.receipt import Receipt
+        rcpt_stmt = select(Receipt).where(Receipt.receipt_id == order_id)
+        rcpt_res = await session.execute(rcpt_stmt)
+        rcpt = rcpt_res.scalar_one_or_none()
+        if rcpt and rcpt.razorpay_order_id:
+            order_id = rcpt.razorpay_order_id
+            stmt = select(Order).where(Order.order_id == order_id)
+            result = await session.execute(stmt)
+            order = result.scalar_one_or_none()
+
+    if not order:
+        raise HTTPException(status_code=404, detail=f"Order or Receipt '{order_id}' not found")
+
 
     if order.status == OrderStatus.PAID:
         return {

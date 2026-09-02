@@ -493,12 +493,14 @@ async def evaluate_transaction_intent(
 
     await session.commit()
 
-    # Generate official Razorpay payment link for manual checkout
+    # Generate official Razorpay payment link for manual checkout or high-value confirmation
     payment_link: Optional[str] = None
-    if overall_decision == DecisionType.APPROVE and final_total_output and not is_autopay_settled and created_order_id:
+    if overall_decision in (DecisionType.APPROVE, DecisionType.REQUIRE_CONFIRMATION) and final_total_output and not is_autopay_settled:
         from app.core.config import get_settings
         settings = get_settings()
-        payment_link = f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{created_order_id}"
+        ref_id = created_order_id or receipt.receipt_id
+        payment_link = f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{ref_id}"
+
 
 
 

@@ -12,7 +12,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Implemented Dual-Lock Safety Architecture pairing Razorpay recurring tokens with the Zero-LLM Commerce Guardian.
   - Extended `BuyerMandate` model (`app/models/mandate.py`) and schemas with `autopay_enabled`, `autopay_token`, `customer_id`, `max_amount_per_charge`, `recurring_auth_status`, `autopay_bank_name`, and `autopay_vpa`.
   - Built `create_autopay_registration()` and `charge_autopay_token()` in `app/razorpay_adapter/client.py` using official Razorpay Recurring APIs (`POST /v1/payments/create/recurring`).
+  - Maintained `MachinePurchaseResponse.status = "APPROVED"` contract in UAP gateway while exposing `headless_autopay: bool` for client-side payment link differentiation.
+  - Added dedicated `check_payment_status` tool to Claude MCP server with real-time Razorpay payment verification, paid settlement confirmation, and pending checkout URL guidance.
+
+  - Enabled single-command full catalog retrieval in `search_catalog` (accepts empty query, `*`, or `all`), returning all 27 products across mobiles, laptops, audio, wearables, and accessories.
+  - Added `GET /payments/sync/{order_id}` and `GET /payments/order/{order_id}` route aliases with bidirectional receipt UUID and order ID lookup.
+  - Enhanced catalog search engine (`search_products`) with multi-token smart matching across product name, SKU, category, and description (e.g. "samsung phone" reliably matches Samsung Galaxy S24).
+
+
+  - Unified payment link routing for Claude MCP, UAP machine gateway, and Guardian escalation alerts to use `{BACKEND_PUBLIC_URL}/payments/checkout/{id}`, resolving Razorpay invalid hosted URL errors.
+
   - Updated `scripts/scenario_telegram_gateway.py` Step 6 to simulate test payment completion (`handle_pay_now`) prior to verification assertion under strict payment synchronization.
+
   - Updated `scripts/scenario_insufficient_autopay_funds.py` and `scripts/scenario_headless_autopay.py` assertions to align with Dual-Lock mandate ceiling checks and auto-activation.
 
   - Fixed substring assertion in `tests/test_guardian.py` (`test_case_05_total_exceeds_mandate_max`) for mandate ceiling exceeded validation.
