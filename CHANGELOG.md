@@ -67,6 +67,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Merchant Dashboard Store Revenue NaN & Missing Handlers**: Resolved `Store Revenue: ₹NaN` by reading `total_revenue` (and mapping `store_revenue` on both FastAPI backend and Next.js frontend), implemented missing `handleSetupMandate` and `handleToggleMandate` handlers, and clamped mandate utilization progress bar bounds between 0% and 100%.
 - **Merchant Dashboard AutoPay Center Light Theme Alignment**: Redesigned the Headless AutoPay e-Mandate telemetry center, active shopper cards, and registration modal in `frontend/src/app/(merchant)/dashboard/page.tsx` from dark slate into the clean, modern white/indigo SaaS aesthetic matching the rest of the Merchant Dashboard.
 - **Merchant Dashboard AutoPay Card Padding & Text Spacing**: Replaced non-existent `p-4.5` with generous `p-5 sm:p-6` padding, added responsive flex-wrapping with gap spacing to prevent title and badge squishing, and formatted VPA, Headroom balance, and action links with dedicated container borders to prevent text touching outer borders.
+- **Claude MCP Negotiation AutoPay-Off Payment Link**: Updated `accept_negotiation_offer` tool in `backend/app/api/mcp_server.py` to surface the 1-click Razorpay checkout payment link when AutoPay is disabled/revoked (matching the Telegram mobile gateway experience), and updated `settle_negotiated_offer` in `backend/app/negotiation/service.py` to resolve the actual principal buyer ID from the mandate rather than the purchasing bot agent ID.
 
 ---
 

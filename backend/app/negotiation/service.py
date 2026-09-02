@@ -289,27 +289,29 @@ async def settle_negotiated_offer(
         raise ValueError(f"Option '{target_option_id}' is invalid for session '{accept_req.session_id}'.")
 
 
-    buyer_bot_id = accept_req.buyer_agent_id or session_data.get("buyer_agent_id", "b_001")
+    mand_info = session_data.get("buyer_mandate", {})
+    principal_buyer_id = getattr(accept_req, "buyer_id", None) or mand_info.get("buyer_id") or (
+        "b_001" if (accept_req.buyer_agent_id and "agent" in accept_req.buyer_agent_id.lower()) else (accept_req.buyer_agent_id or "b_001")
+    )
 
     # 1. Ensure Buyer record exists in database
-    buyer_stmt = select(Buyer).where(Buyer.buyer_id == buyer_bot_id)
+    buyer_stmt = select(Buyer).where(Buyer.buyer_id == principal_buyer_id)
     buyer_res = await session.execute(buyer_stmt)
     if not buyer_res.scalar_one_or_none():
-        session.add(Buyer(buyer_id=buyer_bot_id, name=f"AI Agent {buyer_bot_id}", created_at=utc_now()))
+        session.add(Buyer(buyer_id=principal_buyer_id, name=f"Shopper {principal_buyer_id}", created_at=utc_now()))
         await session.flush()
 
-    # 2. Ensure active Mandate exists with appropriate ceiling for this procurement agent
-    mandate_stmt = select(Mandate).where(Mandate.buyer_id == buyer_bot_id, Mandate.active == True)
+    # 2. Ensure active Mandate exists with appropriate ceiling for this buyer
+    mandate_stmt = select(Mandate).where(Mandate.buyer_id == principal_buyer_id, Mandate.active == True)
     m_res = await session.execute(mandate_stmt)
     existing_mandate = m_res.scalar_one_or_none()
     categories_list = ["audio", "accessories", "wearables", "mobiles", "phones", "laptops", "electronics", "hardware"]
 
     if not existing_mandate:
-        mand_info = session_data.get("buyer_mandate", {})
         is_autopay = mand_info.get("autopay_enabled", True)
         mandate = Mandate(
             mandate_id=f"mand_neg_{uuid.uuid4().hex[:8]}",
-            buyer_id=buyer_bot_id,
+            buyer_id=principal_buyer_id,
             max_amount=mand_info.get("max_amount", 10000000),  # ₹1,00,000 (1 Lakh)
             max_quantity_per_item=mand_info.get("max_quantity_per_item", 10),
             allowed_categories=categories_list,
@@ -320,18 +322,18 @@ async def settle_negotiated_offer(
             signature=mand_info.get("signature", "sig_ed25519_procurement_mandate"),
             active=True,
             autopay_enabled=is_autopay,
-            autopay_token=f"tok_rzp_autopay_{buyer_bot_id[:8]}" if is_autopay else None,
-            customer_id=f"cust_{buyer_bot_id}",
+            autopay_token=f"tok_rzp_autopay_{principal_buyer_id[:8]}" if is_autopay else None,
+            customer_id=f"cust_{principal_buyer_id}",
             max_amount_per_charge=10000000,
             recurring_auth_status="ACTIVE" if is_autopay else "PAUSED",
             autopay_bank_name="HDFC Bank (UPI AutoPay)",
-            autopay_vpa=f"{buyer_bot_id}@okhdfcbank",
+            autopay_vpa=f"{principal_buyer_id}@okhdfcbank",
             created_at=utc_now(),
         )
         session.add(mandate)
         await session.flush()
     else:
-        # Upgrade existing mandate categories and ceiling while preserving buyer's AutoPay toggle
+        # Upgrade existing mandate categories and ceiling while strictly preserving buyer's AutoPay state
         existing_mandate.max_amount = max(existing_mandate.max_amount or 0, 10000000)
         existing_mandate.max_amount_per_charge = max(getattr(existing_mandate, "max_amount_per_charge", 0) or 0, 10000000)
         existing_mandate.allowed_categories = categories_list
@@ -388,7 +390,7 @@ async def settle_negotiated_offer(
     now = utc_now()
     intent_req = TransactionIntentRequest(
         intent_id=intent_id,
-        buyer_id=buyer_bot_id,
+        buyer_id=principal_buyer_id,
         merchant_id=accept_req.merchant_id,
         items=purchase_items,
         requested_discount_pct=0 if is_bundle else primary_disc,
@@ -403,10 +405,13 @@ async def settle_negotiated_offer(
 
     order_id = decision_resp.razorpay_order.order_id if decision_resp.razorpay_order else None
     
-    # Generate hosted Razorpay checkout URL
+    # Generate hosted Razorpay checkout URL when AutoPay is not settled
     from app.core.config import get_settings
     settings = get_settings()
-    plink = f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{order_id}" if (decision_resp.decision == DecisionType.APPROVE and order_id) else None
+    plink = decision_resp.payment_link
+    if not plink and decision_resp.decision in (DecisionType.APPROVE, DecisionType.REQUIRE_CONFIRMATION):
+        ref_id = order_id or decision_resp.receipt_id
+        plink = f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{ref_id}"
 
 
 

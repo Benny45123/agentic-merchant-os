@@ -67,6 +67,7 @@ class RFQResponse(BaseModel):
 class AcceptOfferRequest(BaseModel):
     session_id: str
     buyer_agent_id: str = "ai_buyer_agent_procure_42"
+    buyer_id: Optional[str] = None
     merchant_id: str = "m_001"
     selected_option_id: Optional[str] = None
     option_id: Optional[str] = None

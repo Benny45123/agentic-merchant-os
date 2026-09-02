@@ -117,7 +117,7 @@ TOOLS = [
     },
     {
         "name": "accept_negotiation_offer",
-        "description": "Accept an offer from a previous RFQ negotiation session (e.g. OPT_DIRECT_PRICE or OPT_BUNDLE_SWEETENER) to finalize Guardian authorization and Razorpay order.",
+        "description": "Accept an offer from a previous RFQ negotiation session (e.g. OPT_DIRECT_PRICE or OPT_BUNDLE_SWEETENER) to finalize Guardian authorization and Razorpay order. If AutoPay is active, settles autonomously in 0-clicks; if AutoPay is disabled/revoked, generates an official Razorpay payment link for human checkout.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -128,6 +128,11 @@ TOOLS = [
                 "selected_option_id": {
                     "type": "string",
                     "description": "Chosen option ID (e.g. 'OPT_DIRECT_PRICE' or 'OPT_BUNDLE_SWEETENER')"
+                },
+                "buyer_id": {
+                    "type": "string",
+                    "default": "b_001",
+                    "description": "Identifier of the human buyer funding the purchase (default 'b_001')"
                 },
                 "buyer_agent_id": {
                     "type": "string",
@@ -430,10 +435,12 @@ def handle_tool_call(name, args):
                 session_id = args["session_id"]
                 option_id = args["selected_option_id"]
                 buyer_agent = args.get("buyer_agent_id", "ai_buyer_agent_procure_42")
+                buyer_id = args.get("buyer_id", "b_001")
 
                 accept_payload = {
                     "session_id": session_id,
                     "buyer_agent_id": buyer_agent,
+                    "buyer_id": buyer_id,
                     "merchant_id": "m_001",
                     "selected_option_id": option_id,
                     "buyer_signature": "sig_mcp_signed_contract",
@@ -442,6 +449,30 @@ def handle_tool_call(name, args):
                 res = client.post("/commerce/accept", json=accept_payload)
                 if res.status_code == 200:
                     data = res.json()
+                    is_autopay = bool(data.get("headless_autopay"))
+                    order_id = data.get("razorpay_order_id")
+                    receipt_id = data.get("receipt_id")
+                    plink = data.get("payment_link") or f"{API_BASE}/payments/checkout/{order_id or receipt_id}"
+
+                    if is_autopay:
+                        payment_status = (
+                            f"⚡ 0-CLICK AUTONOMOUS AUTOPAY COMPLETED!\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"• Method: Razorpay UPI AutoPay (Headless)\n"
+                            f"• Payment ID: {data.get('autopay_payment_id') or 'pay_autopay_captured'}\n"
+                            f"• Status: Paid autonomously in < 400ms (0 OTP prompts)"
+                        )
+                    else:
+                        payment_status = (
+                            f"🛡️ GUARDIAN APPROVED — PAYMENT LINK READY (AutoPay Disabled)\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💳 1-Click Razorpay Checkout Link:\n"
+                            f"  {plink}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"ℹ️ Headless AutoPay is currently DISABLED or PAUSED for this buyer.\n"
+                            f"👉 The human buyer MUST open the checkout link above to complete payment on Razorpay!"
+                        )
+
                     out = (
                         f"🎉 NEGOTIATION AGREEMENT SETTLED & AUTHORIZED!\n"
                         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -449,7 +480,7 @@ def handle_tool_call(name, args):
                         f"💰 Final Verified Total: ₹{data['final_verified_total_paise']/100:.2f}\n"
                         f"📈 Merchant Gross Margin Achieved: {data['merchant_margin_achieved_pct']}%\n"
                         f"🧾 Decision Receipt ID: {data['receipt_id']}\n"
-                        f"💳 Razorpay Order ID: {data.get('razorpay_order_id', 'None')}\n"
+                        f"💳 Razorpay Order ID: {order_id or 'None'}\n"
                         f"🔒 Cryptographic Replay Hash: {data['replay_hash']}\n"
                         f"📜 Reason: {data['reason']}\n"
                         f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -457,6 +488,8 @@ def handle_tool_call(name, args):
                     )
                     for item in data.get("negotiated_items", []):
                         out += f"  • {item['qty']}x {item['sku']} @ {item['price_inr']}/unit\n"
+                    out += f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                    out += f"{payment_status}\n"
                     return {"content": [{"type": "text", "text": out}]}
                 return {"isError": True, "content": [{"type": "text", "text": f"Settlement Failed: {res.text}"}]}
 
