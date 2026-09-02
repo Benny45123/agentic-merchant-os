@@ -45,6 +45,12 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_bank_name VARCHAR(100)"))
             if "autopay_vpa" not in existing_cols:
                 await conn.execute(text("ALTER TABLE mandates ADD COLUMN autopay_vpa VARCHAR(255)"))
+            if "open_mandate_jwt" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN open_mandate_jwt TEXT"))
+            if "user_public_key_pem" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN user_public_key_pem TEXT"))
+            if "agent_public_key_pem" not in existing_cols:
+                await conn.execute(text("ALTER TABLE mandates ADD COLUMN agent_public_key_pem TEXT"))
 
         except Exception:
             pass

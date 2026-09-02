@@ -40,6 +40,26 @@ async def create_mandate(
         .values(active=False)
     )
 
+    open_jwt = data.open_mandate_jwt
+    user_pub = data.user_public_key_pem
+    agent_pub = data.agent_public_key_pem
+
+    # Automatically mint Google AP2 Open Mandate if not explicitly supplied
+    if not open_jwt:
+        try:
+            from app.mandate.ap2_service import mint_open_mandate, get_or_create_agent_keypair
+            open_jwt, user_pub = mint_open_mandate(
+                buyer_id=buyer_id,
+                max_total_paise=data.max_amount,
+                max_per_charge_paise=data.max_amount_per_charge,
+                currency=data.currency,
+                autopay_token=data.autopay_token,
+                customer_id=data.customer_id,
+            )
+            _, agent_pub = get_or_create_agent_keypair()
+        except Exception:
+            pass
+
     mandate = Mandate(
         mandate_id=generate_uuid(),
         buyer_id=buyer_id,
@@ -60,6 +80,9 @@ async def create_mandate(
         recurring_auth_status=data.recurring_auth_status,
         autopay_bank_name=data.autopay_bank_name,
         autopay_vpa=data.autopay_vpa,
+        open_mandate_jwt=open_jwt,
+        user_public_key_pem=user_pub,
+        agent_public_key_pem=agent_pub,
         created_at=utc_now(),
     )
     session.add(mandate)

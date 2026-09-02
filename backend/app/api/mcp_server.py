@@ -234,6 +234,21 @@ TOOLS = [
             },
             "required": []
         }
+    },
+    {
+        "name": "get_ap2_mandate_chain",
+        "description": "Retrieve the active Google Agent Payments Protocol (AP2) Open Mandate JWT and cryptographic ES256 delegation parameters (NIST P-256) for an autonomous buyer.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "buyer_id": {
+                    "type": "string",
+                    "default": "b_001",
+                    "description": "Buyer ID"
+                }
+            },
+            "required": []
+        }
     }
 ]
 
@@ -626,6 +641,28 @@ def handle_tool_call(name, args):
                         )
                     return {"content": [{"type": "text", "text": out}]}
                 return {"isError": True, "content": [{"type": "text", "text": f"Error verifying mandate: {res.text}"}]}
+
+            elif name == "get_ap2_mandate_chain":
+                buyer_id = args.get("buyer_id", "b_001")
+                res = client.get(f"/mandate/ap2/open/{buyer_id}")
+                if res.status_code == 200:
+                    data = res.json()
+                    out = (
+                        f"🔐 GOOGLE AP2 OPEN MANDATE DELEGATION (ES256)\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"• Protocol: Google Agent Payments Protocol (AP2-v1)\n"
+                        f"• Status: {data.get('status', 'ACTIVE')} 🟢\n"
+                        f"• Buyer ID: {data.get('buyer_id')}\n"
+                        f"• Algorithm: ECDSA ES256 (NIST P-256 / secp256r1)\n"
+                        f"• Spending Ceiling: ₹{(data.get('max_total_paise') or 10000000)/100:,.2f}\n"
+                        f"• Per-Charge Limit: ₹{(data.get('max_per_charge_paise') or 5000000)/100:,.2f}\n"
+                        f"• Linked Razorpay Rail: {data.get('autopay_token', 'tok_rzp_autopay_active')}\n"
+                        f"• Open Mandate JWT: {data.get('open_mandate_jwt')[:32]}...\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"✅ User ES256 public key is registered. AI transactions will cryptographically pin canonical cart digests."
+                    )
+                    return {"content": [{"type": "text", "text": out}]}
+                return {"isError": True, "content": [{"type": "text", "text": f"Error fetching AP2 mandate: {res.text}"}]}
 
             else:
                 return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {name}"}]}

@@ -15,6 +15,7 @@ router = APIRouter(prefix="/dashboard", tags=["Merchant Dashboard & Revenue Anal
 
 class RevenueAnalyticsResponse(BaseModel):
     total_revenue: int
+    store_revenue: int = 0
     order_count: int
     upsell_attach_rate: float
     upsell_revenue: int
@@ -89,6 +90,7 @@ async def get_revenue_analytics(
 
     return RevenueAnalyticsResponse(
         total_revenue=total_revenue,
+        store_revenue=total_revenue,
         order_count=order_count,
         upsell_attach_rate=round(upsell_attach_rate, 2),
         upsell_revenue=upsell_revenue,
