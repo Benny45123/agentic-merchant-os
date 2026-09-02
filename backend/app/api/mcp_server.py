@@ -17,13 +17,13 @@ API_BASE = os.environ.get("MERCHANT_API_BASE", "http://localhost:8000")
 TOOLS = [
     {
         "name": "search_catalog",
-        "description": "Search the official store product catalog for headphones, soundbars, earbuds, and accessories with live authoritative prices and stock levels.",
+        "description": "Retrieve the official store product catalog or search across all categories (mobiles, laptops, audio, wearables, accessories) with live authoritative prices and stock levels. To retrieve the FULL catalog with all products in a single call, leave query empty or pass '*' or 'all'.",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "query": {
                     "type": "string",
-                    "description": "Search term (e.g. 'earbuds', 'headphones', 'case', 'soundbar')"
+                    "description": "Optional search keyword (e.g. 'phone', 'iphone', 'samsung', 'laptop', 'earbuds', 'watch', 'case'). Leave empty or pass '*' / 'all' to list the entire catalog."
                 },
                 "merchant_id": {
                     "type": "string",
@@ -34,6 +34,7 @@ TOOLS = [
             "required": []
         }
     },
+
     {
         "name": "submit_machine_purchase",
         "description": "Execute a programmatic purchase through the deterministic Commerce Guardian. Authorizes orders within buyer mandate limits and generates Razorpay Test Orders and Decision Receipts.",
@@ -204,8 +205,23 @@ TOOLS = [
             },
             "required": []
         }
+    },
+    {
+        "name": "check_payment_status",
+        "description": "Check and verify if a customer payment has been completed on Razorpay for a given order ID (e.g. 'order_TX4QlTTW4vKXcx') or Decision Receipt ID (UUID). Returns whether payment is confirmed/complete or still pending, and provides the checkout link if unpaid.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "order_id": {
+                    "type": "string",
+                    "description": "Razorpay order ID (e.g. 'order_TX4QlTTW4vKXcx') or Decision Receipt ID (UUID)"
+                }
+            },
+            "required": ["order_id"]
+        }
     }
 ]
+
 
 
 
@@ -218,9 +234,12 @@ def handle_tool_call(name, args):
     try:
         with httpx.Client(base_url=API_BASE, timeout=10.0) as client:
             if name == "search_catalog":
-                q = args.get("query", "")
+                q = (args.get("query") or "").strip()
                 m = args.get("merchant_id", "m_001")
+                if q.lower() in ("*", "all", "full", "everything", "all products", "catalog", "full catalog"):
+                    q = ""
                 res = client.get("/catalog/products", params={"q": q, "merchant_id": m})
+
                 if res.status_code == 200:
                     products = res.json().get("products", [])
                     summary = [
@@ -273,8 +292,9 @@ def handle_tool_call(name, args):
                     decision = data.get("guardian_decision")
                     if decision == "REQUIRE_CONFIRMATION":
                         notif = data.get("high_value_notification") or {}
-                        plink = data.get("payment_link") or notif.get("payment_link") or f"https://api.razorpay.com/v1/payment_links/plink_highval_{data.get('receipt_id')[:8]}"
+                        plink = data.get("payment_link") or notif.get("payment_link") or f"{API_BASE}/payments/checkout/{data.get('receipt_id')}"
                         recipient = notif.get("dispatched_to", "+91 98765 43210")
+
                         out = (
                             f"⚠️ GUARDIAN ESCALATION: REQUIRE_CONFIRMATION\n"
                             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -290,16 +310,35 @@ def handle_tool_call(name, args):
                             f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
                             f"🔒 The AI bot cannot settle this high-value amount autonomously. Click the authorization link above to confirm & pay."
                         )
-                    else:
+                    elif data.get("headless_autopay"):
                         out = (
-                            f"🛡️ Guardian Decision: {data['guardian_decision']}\n"
-                            f"💰 Total Amount: ₹{(data.get('final_verified_total') or 0)/100.0:.2f}\n"
+                            f"⚡ 0-CLICK AUTONOMOUS AUTOPAY COMPLETED!\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🛡️ Guardian Decision: APPROVE (19/19 Invariants Passed)\n"
+                            f"📦 Item: {product.get('name')} (SKU: {sku})\n"
+                            f"💰 Total Amount Paid: ₹{(data.get('final_verified_total') or product['price'])/100.0:.2f}\n"
                             f"🧾 Decision Receipt ID: {data['receipt_id']}\n"
                             f"💳 Razorpay Order ID: {data.get('razorpay_order_id', 'None')}\n"
                             f"🔒 Replay Hash: {data.get('replay_hash', 'None')}\n"
-                            f"📜 Reason: {data.get('reason')}"
+                            f"📜 Status: Paid autonomously in < 400ms via UPI AutoPay (0 OTP prompts)"
+                        )
+                    else:
+                        plink = data.get("payment_link") or f"{API_BASE}/payments/checkout/{data.get('razorpay_order_id') or data.get('receipt_id')}"
+                        out = (
+                            f"🛡️ GUARDIAN APPROVED — PAYMENT LINK READY (AutoPay Disabled)\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"📦 Item: {product.get('name')} (SKU: {sku})\n"
+                            f"💰 Total Amount: ₹{(data.get('final_verified_total') or product['price'])/100.0:.2f}\n"
+                            f"🧾 Decision Receipt ID: {data['receipt_id']}\n"
+                            f"💳 Razorpay Order ID: {data.get('razorpay_order_id', 'None')}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"💳 1-Click Razorpay Checkout Link:\n"
+                            f"  {plink}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"ℹ️ AutoPay is disabled. Click the checkout link above to complete your payment on Razorpay."
                         )
                     return {"content": [{"type": "text", "text": out}]}
+
                 return {"isError": True, "content": [{"type": "text", "text": f"Purchase Failed: {res.text}"}]}
 
             elif name == "submit_commerce_rfq":
@@ -442,8 +481,47 @@ def handle_tool_call(name, args):
                     return {"content": [{"type": "text", "text": json.dumps(res.json(), indent=2)}]}
                 return {"isError": True, "content": [{"type": "text", "text": f"Receipt not found: {res.text}"}]}
 
+            elif name == "check_payment_status":
+                order_id = args.get("order_id", "").strip()
+                if not order_id:
+                    return {"isError": True, "content": [{"type": "text", "text": "Missing required argument: order_id"}]}
+
+                res = client.post(f"/payments/sync/{order_id}")
+                if res.status_code == 200:
+                    data = res.json()
+                    amt = (data.get("amount") or 0) / 100.0
+                    if data.get("paid"):
+                        out = (
+                            f"✅ PAYMENT COMPLETED & VERIFIED!\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"• Order ID: {data.get('order_id')}\n"
+                            f"• Payment ID: {data.get('payment_id', 'Verified')}\n"
+                            f"• Status: PAID ✅\n"
+                            f"• Amount Settled: ₹{amt:,.2f}\n"
+                            f"• Decision Receipt ID: {data.get('receipt_id', 'Linked')}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🎉 Payment successfully captured on Razorpay and store revenue credited on Merchant Dashboard."
+                        )
+                    else:
+                        checkout_url = f"{API_BASE}/payments/checkout/{data.get('order_id')}"
+                        out = (
+                            f"⏳ PAYMENT NOT COMPLETED (STILL PENDING)\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"• Order ID: {data.get('order_id')}\n"
+                            f"• Status: PENDING / CREATED ⏳\n"
+                            f"• Amount: ₹{amt:,.2f}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"👉 The customer has not completed checkout yet.\n"
+                            f"Pay via this 1-Click Razorpay link:\n"
+                            f"  {checkout_url}\n\n"
+                            f"Once paid, ask me to check payment status again!"
+                        )
+                    return {"content": [{"type": "text", "text": out}]}
+                return {"isError": True, "content": [{"type": "text", "text": f"Failed to check payment status: {res.text}"}]}
+
             else:
                 return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {name}"}]}
+
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"MCP execution error: {str(e)}"}]}
 

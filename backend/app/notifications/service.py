@@ -26,7 +26,10 @@ async def dispatch_high_value_escalation_sms(
     when an AI agent encounters a high-value bill exceeding the autonomous mandate ceiling.
     """
     total_inr = order_total / 100.0
-    pay_url = payment_link or f"https://api.razorpay.com/v1/checkout/hosted?receipt={receipt_id}"
+    from app.core.config import get_settings
+    settings = get_settings()
+    pay_url = payment_link or f"{settings.BACKEND_PUBLIC_URL}/payments/checkout/{receipt_id}"
+
 
     message_body = (
         f"🛡️ [Agentic Merchant OS] High-Value AI Purchase Alert:\n"

@@ -35,18 +35,55 @@ async def search_products(
     if category:
         stmt = stmt.where(Product.category.ilike(category))
 
-    if query and query.strip():
-        search_term = f"%{query.strip()}%"
-        stmt = stmt.where(
-            or_(
-                Product.name.ilike(search_term),
-                Product.sku.ilike(search_term),
-                Product.description.ilike(search_term),
+    # If query is empty, wildcard, or request for all/full catalog, return everything without filtering
+    clean_q = query.strip() if query else ""
+    if clean_q and clean_q.lower() not in ("*", "all", "full", "everything", "all products", "catalog", "full catalog"):
+        terms = [t for t in clean_q.split() if len(t) >= 2]
+        if terms:
+            # 1. Try strict matching: all terms must match
+            and_clauses = []
+            for t in terms:
+                term_str = f"%{t}%"
+                and_clauses.append(
+                    or_(
+                        Product.name.ilike(term_str),
+                        Product.sku.ilike(term_str),
+                        Product.category.ilike(term_str),
+                        Product.description.ilike(term_str),
+                    )
+                )
+            strict_res = await session.execute(stmt.where(*and_clauses))
+            strict_results = list(strict_res.scalars().all())
+            if strict_results:
+                return strict_results
+
+            # 2. Fallback: match ANY term (e.g. "headphones case audio" matches items containing any of those words)
+            or_clauses = []
+            for t in terms:
+                term_str = f"%{t}%"
+                or_clauses.append(
+                    or_(
+                        Product.name.ilike(term_str),
+                        Product.sku.ilike(term_str),
+                        Product.category.ilike(term_str),
+                        Product.description.ilike(term_str),
+                    )
+                )
+            stmt = stmt.where(or_(*or_clauses))
+        else:
+            search_term = f"%{clean_q}%"
+            stmt = stmt.where(
+                or_(
+                    Product.name.ilike(search_term),
+                    Product.sku.ilike(search_term),
+                    Product.category.ilike(search_term),
+                    Product.description.ilike(search_term),
+                )
             )
-        )
 
     result = await session.execute(stmt)
     return list(result.scalars().all())
+
 
 
 async def get_authoritative_state(sku: str, session: AsyncSession) -> AuthoritativeState:
