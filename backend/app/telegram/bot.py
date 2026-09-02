@@ -165,6 +165,11 @@ class TelegramBotService:
                 res = await self.handlers.handle_autopay_status()
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
+            elif data == "autopay:verify":
+                res = await self.handlers.handle_autopay_verify()
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
+
 
             elif data == "cmd:catalog":
                 res = await self.handlers.handle_catalog()
@@ -196,13 +201,17 @@ class TelegramBotService:
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             elif text.startswith("/autopay"):
-                if "on" in text.lower():
+                lower = text.lower()
+                if any(w in lower for w in ["on", "enable", "setup", "activate", "start"]):
                     res = await self.handlers.handle_autopay_toggle(True)
-                elif "off" in text.lower():
+                elif any(w in lower for w in ["off", "disable", "pause", "revoke", "stop"]):
                     res = await self.handlers.handle_autopay_toggle(False)
+                elif any(w in lower for w in ["verify", "check", "status"]):
+                    res = await self.handlers.handle_autopay_verify()
                 else:
                     res = await self.handlers.handle_autopay_status()
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
+
 
             elif text.startswith("/help"):
                 res = await self.handlers.handle_start(user_name)

@@ -8,10 +8,41 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [1.3.0] - 2026-08-31
 ### Added
+- **Live Razorpay Test Mandate Verification Gate**:
+  - Implemented `verify_mandate_token(customer_id, token_id)` in `RazorpayAdapter` (`app/razorpay_adapter/client.py`) to cryptographically verify recurring tokens directly against Razorpay's API sandbox (`api.razorpay.com`) prior to zero-click debit execution.
+  - Integrated Live Mandate Verification Gate into the Commerce Guardian (`app/guardian/pipeline.py`), appending deterministic invariant check `mandate.razorpay_verified: PASSED` to signed Decision Receipts.
+  - Added REST endpoint `GET /mandates/autopay/verify` in `app/razorpay_adapter/router.py` returning live token authorization status, customer ID, and verification metadata.
+  - Enforced strict gate ordering: `setup_autopay_mandate` queries the Live Razorpay Mandate Verification Gate BEFORE writing activation state to the database, deterministically rejecting unverified tokens.
+  - Positioned `RAZORPAY MANDATE VERIFICATION GATE: PASSED` on line 1 of Claude MCP setup card to ensure visibility before CLI message folding (`ctrl+o`).
+  - Fixed mandate cycle spend calculation: `setup_autopay_mandate` resets `mandate.spent_amount = 0`, giving newly authorized mandate pools 100% available headroom rather than tallying historical lifetime orders.
+
+
+  - Built Hosted Razorpay Test Mandate Verification & Authorization Portal (`/mandates/checkout/{identifier}`) with live token telemetry, interactive Razorpay `checkout.js` e-mandate modal, and instant API verification probe.
+  - Implemented True 2-Step Mandate Lifecycle: `setup_autopay_mandate` creates mandate in `PENDING_AUTH` state (`autopay_enabled = False`) with a live Razorpay authorization link; mandate only transitions to `ACTIVE` once the human shopper authorizes via the hosted Razorpay modal.
+  - Added `POST /mandates/checkout/{identifier}/authorize` endpoint to finalize online mandate activation.
+  - Fixed Razorpay Checkout modal "The id provided does not exist" error by provisioning a real test mandate `order_id` (₹1.00 NPCI test auth) via `adapter.create_order` and removing un-indexed `customer_id` from client-side modal options.
+  - Added live Razorpay `handler` callback in `checkout.js` with instant celebration banner displaying the captured Razorpay Payment ID and real-time state transition to ACTIVE.
+  - Streamlined portal UX to a single primary `[ ⚡ Authorize & Activate Mandate on Razorpay ]` button with 1-click test fallback.
+  - Added interactive `[ 🛡️ Verify Mandate on Razorpay ]` button and `handle_autopay_verify()` handler to the omnichannel Telegram Bot (`app/telegram/handlers.py`, `app/telegram/bot.py`).
+  - Integrated 2-Step Mandate Authorization Gate into Telegram Bot (`@agentic_merchant_store_bot`):
+    - When shopper triggers `/autopay` or types "activate autopay", the bot presents an inline URL button `[ ⚡ Authorize Mandate on Razorpay ]` opening the hosted Razorpay checkout portal in the mobile in-app browser via the public HTTPS tunnel.
+    - Verified live end-to-end mobile authorization directly from physical smartphone: opens Razorpay checkout, captures ₹1 test auth, and transitions mandate to `ACTIVE 🟢`.
+    - Added real-time token state awareness in `/autopay` and `autopay:verify` callback handlers in `app/telegram/bot.py`, indicating `PENDING_AUTH` before authorization and `ACTIVE 🟢` with 100% available headroom afterward.
+    - Extended Telegram natural language message router to recognize all AutoPay phrases (`activate`, `turn on`, `verify`, `check status`, `revoke`).
+
+
+
+
+
+
+  - Updated `docs/23_HEADLESS_RAZORPAY_UPI_AUTOPAY.md` and `agent_tasks/agent_20_headless_autopay.md` with complete 3-layer mandate verification specs.
+  - Added test coverage in `tests/test_headless_autopay.py` (`test_live_razorpay_mandate_verification_endpoint` and `test_telegram_autopay_verify_handler`).
+
 - **True Headless Razorpay UPI AutoPay Engine (`tok_rzp_autopay_xxx`)**:
   - Implemented Dual-Lock Safety Architecture pairing Razorpay recurring tokens with the Zero-LLM Commerce Guardian.
   - Extended `BuyerMandate` model (`app/models/mandate.py`) and schemas with `autopay_enabled`, `autopay_token`, `customer_id`, `max_amount_per_charge`, `recurring_auth_status`, `autopay_bank_name`, and `autopay_vpa`.
   - Built `create_autopay_registration()` and `charge_autopay_token()` in `app/razorpay_adapter/client.py` using official Razorpay Recurring APIs (`POST /v1/payments/create/recurring`).
+
   - Maintained `MachinePurchaseResponse.status = "APPROVED"` contract in UAP gateway while exposing `headless_autopay: bool` for client-side payment link differentiation.
   - Added dedicated `check_payment_status` tool to Claude MCP server with real-time Razorpay payment verification, paid settlement confirmation, and pending checkout URL guidance.
 

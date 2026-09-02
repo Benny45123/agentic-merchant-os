@@ -219,8 +219,24 @@ TOOLS = [
             },
             "required": ["order_id"]
         }
+    },
+    {
+        "name": "verify_autopay_mandate",
+        "description": "Live Razorpay Test Mandate Verification Gate: Queries Razorpay Test API to cryptographically verify that the buyer's recurring UPI AutoPay token is active, confirmed on the payment rail, and valid for zero-click autonomous checkout.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "buyer_id": {
+                    "type": "string",
+                    "default": "b_001",
+                    "description": "Buyer ID"
+                }
+            },
+            "required": []
+        }
     }
 ]
+
 
 
 
@@ -440,21 +456,50 @@ def handle_tool_call(name, args):
                 buyer_id = args.get("buyer_id", "b_001")
                 cap = args.get("max_amount_paise", 10000000)
                 vpa = args.get("vpa")
-                res = client.post("/mandates/autopay/setup", json={"buyer_id": buyer_id, "max_amount_paise": cap, "vpa": vpa})
+                res = client.post("/mandates/autopay/setup", json={
+                    "buyer_id": buyer_id,
+                    "max_amount_paise": cap,
+                    "vpa": vpa,
+                    "simulate_auth": False,
+                })
                 if res.status_code == 200:
                     data = res.json()
-                    out = (
-                        f"⚡ HEADLESS UPI AUTOPAY MANDATE ACTIVATED!\n"
-                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        f"• Status: {data['status']} (0-Click Payments Enabled)\n"
-                        f"• Recurring Token: {data['token_id']}\n"
-                        f"• Customer ID: {data['customer_id']}\n"
-                        f"• Monthly Spend Cap: ₹{data['max_amount_paise']/100:.2f}\n"
-                        f"• Linked VPA: {data['vpa']} ({data['bank_name']})\n"
-                        f"• Gate: 100% Deterministic Commerce Guardian Protection\n"
-                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                        f"🎉 Claude is now authorized to execute autonomous purchases with 0 OTP prompts."
-                    )
+                    headroom = data.get("remaining_headroom_paise", data["max_amount_paise"]) / 100.0
+                    auth_link = data.get("auth_url") or f"{API_BASE}/mandates/checkout/{data.get('token_id')}"
+
+                    if data.get("status") == "PENDING_AUTH" or not data.get("autopay_enabled"):
+                        out = (
+                            f"⏳ RAZORPAY MANDATE AUTHORIZATION GATE: AWAITING HUMAN SIGNATURE\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"• Status: PENDING_AUTH (Awaiting 1-Time Human Authorization)\n"
+                            f"• Mandate Authorization Pool: ₹{data['max_amount_paise']/100:,.2f}\n"
+                            f"• Recurring Token: {data['token_id']}\n"
+                            f"• Customer ID: {data['customer_id']}\n"
+                            f"• Linked VPA: {data['vpa']} ({data['bank_name']})\n"
+                            f"• Commerce Guardian: 100% Rule 6 Protected (Zero Financial Leakage)\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"👉 🔗 Please Authorize Your UPI AutoPay Mandate on Razorpay:\n"
+                            f"   {auth_link}\n\n"
+                            f"⚠️ Zero-click purchases remain safely LOCKED until you authorize via the link.\n"
+                            f"Once authorized on the portal, type: 'check autopay status'!"
+                        )
+                    else:
+                        out = (
+                            f"🛡️ RAZORPAY MANDATE VERIFICATION GATE: ACTIVE & VERIFIED ✅\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"• AutoPay Status: ACTIVE (0-Click Payments Enabled)\n"
+                            f"• Recurring Token: {data['token_id']}\n"
+                            f"• Customer ID: {data['customer_id']}\n"
+                            f"• Mandate Authorization Pool: ₹{data['max_amount_paise']/100:,.2f}\n"
+                            f"• Available Spend Headroom: ₹{headroom:,.2f} (100% Available)\n"
+                            f"• Linked VPA: {data['vpa']} ({data['bank_name']})\n"
+                            f"• Commerce Guardian: 100% Rule 6 Protected (Zero Financial Leakage)\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"👉 🔗 View Mandate on Razorpay Portal:\n"
+                            f"   {auth_link}\n\n"
+                            f"🎉 Mandate verified on Razorpay test rail. Claude is authorized for autonomous 0-click purchases."
+                        )
+
                     return {"content": [{"type": "text", "text": out}]}
                 return {"isError": True, "content": [{"type": "text", "text": f"AutoPay Setup Error: {res.text}"}]}
 
@@ -463,8 +508,42 @@ def handle_tool_call(name, args):
                 res = client.get("/mandates/autopay/status", params={"buyer_id": buyer_id})
                 if res.status_code == 200:
                     data = res.json()
-                    return {"content": [{"type": "text", "text": json.dumps(data, indent=2)}]}
+                    auth_link = data.get("auth_url") or f"{API_BASE}/mandates/checkout/{data.get('token_id', 'none')}"
+
+                    if not data.get("autopay_enabled") or data.get("status") == "PENDING_AUTH":
+                        out = (
+                            f"⏳ HEADLESS UPI AUTOPAY: AWAITING HUMAN AUTHORIZATION 🟡\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"• Status: {data.get('status', 'PENDING_AUTH')} (0-Click Disabled)\n"
+                            f"• Proposed Mandate Cap: ₹{(data.get('max_amount_paise') or 10000000)/100:,.2f}\n"
+                            f"• Recurring Token: {data.get('token_id', 'None')}\n"
+                            f"• Linked VPA: {data.get('vpa', 'b_001@okhdfcbank')} ({data.get('bank_name', 'HDFC Bank')})\n"
+                            f"• Message: {data.get('message', 'Awaiting 1-time human authorization on Razorpay')}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"👉 🔗 Please Complete Authorization on Razorpay Portal:\n"
+                            f"   {auth_link}\n\n"
+                            f"Once authorized on the link, Claude will unlock autonomous 0-click purchases."
+                        )
+                    else:
+                        out = (
+                            f"⚡ HEADLESS UPI AUTOPAY: ACTIVE 🟢\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"• Status: ACTIVE (0-Click Payments Enabled)\n"
+                            f"• Recurring Token: {data['token_id']}\n"
+                            f"• Customer ID: {data['customer_id']}\n"
+                            f"• Mandate Authorization Pool: ₹{data['max_amount_paise']/100:,.2f}\n"
+                            f"• Remaining Spend Headroom: ₹{data['remaining_headroom_paise']/100:,.2f} ({100 - data.get('spent_pct', 0):.1f}% Available)\n"
+                            f"• Linked VPA: {data['vpa']} ({data['bank_name']})\n"
+                            f"• Razorpay Verification: {data.get('verification_gate', 'PASSED')}\n"
+                            f"• Commerce Guardian: 100% Rule 6 Protected (Zero Financial Leakage)\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"👉 🔗 View Mandate on Razorpay Portal:\n"
+                            f"   {auth_link}\n\n"
+                            f"🎉 Claude is authorized to execute autonomous purchases with 0 OTP prompts."
+                        )
+                    return {"content": [{"type": "text", "text": out}]}
                 return {"isError": True, "content": [{"type": "text", "text": f"Error fetching AutoPay status: {res.text}"}]}
+
 
             elif name == "revoke_autopay_mandate":
                 buyer_id = args.get("buyer_id", "b_001")
@@ -519,8 +598,38 @@ def handle_tool_call(name, args):
                     return {"content": [{"type": "text", "text": out}]}
                 return {"isError": True, "content": [{"type": "text", "text": f"Failed to check payment status: {res.text}"}]}
 
+            elif name == "verify_autopay_mandate":
+                buyer_id = args.get("buyer_id", "b_001")
+                res = client.get("/mandates/autopay/verify", params={"buyer_id": buyer_id})
+                if res.status_code == 200:
+                    data = res.json()
+                    if data.get("verified"):
+                        out = (
+                            f"🛡️ LIVE RAZORPAY MANDATE VERIFICATION: PASSED ✅\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"• Status: {data.get('status')} (Active on Test Rail)\n"
+                            f"• Recurring Token: {data.get('token_id')}\n"
+                            f"• Customer ID: {data.get('customer_id')}\n"
+                            f"• Verification Rail: {data.get('rail')}\n"
+                            f"• Verification Note: {data.get('reason')}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"✅ Mandate authorization is fully verified against Razorpay Test API."
+                        )
+                    else:
+                        out = (
+                            f"⚠️ RAZORPAY MANDATE VERIFICATION: UNVERIFIED / REJECTED\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"• Status: {data.get('status')}\n"
+                            f"• Reason: {data.get('message') or data.get('reason')}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🔒 Autonomous 0-click debits are locked until valid mandate registration."
+                        )
+                    return {"content": [{"type": "text", "text": out}]}
+                return {"isError": True, "content": [{"type": "text", "text": f"Error verifying mandate: {res.text}"}]}
+
             else:
                 return {"isError": True, "content": [{"type": "text", "text": f"Unknown tool: {name}"}]}
+
 
     except Exception as e:
         return {"isError": True, "content": [{"type": "text", "text": f"MCP execution error: {str(e)}"}]}

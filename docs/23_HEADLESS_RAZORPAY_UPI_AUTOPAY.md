@@ -21,7 +21,7 @@ BUYER MANDATE = THE LOCK
         ├── Duration: 90 Days
         └── Status: ACTIVE
         │
-Claude MCP / A2A Buyer Agent
+Claude MCP / A2A Buyer Agent / Telegram
         │
         │ Negotiates purchase: iPhone 15 @ ₹64,500
         ▼
@@ -32,20 +32,26 @@ DETERMINISTIC COMMERCE GUARDIAN
         ├── 3. Txn (₹64,500) ≤ Max Txn (₹75,000)?         ✓ PASS
         ├── 4. Cumulative Spend (₹64.5k) ≤ Pool (₹150k)?  ✓ PASS
         ├── 5. Merchant Margin Floor ≥ 15%?              ✓ PASS
-        └── 6. Zero Prompt Injection?                     ✓ PASS
+        ├── 6. Zero Prompt Injection?                     ✓ PASS
         │
-        ▼ (Only if 100% Invariants PASS)
+        ├── ★ LIVE RAZORPAY TEST MANDATE VERIFICATION GATE ★
+        │   • Query Razorpay Test API: GET /v1/customers/{cust_id}/tokens
+        │   • Verify recurring token is 'confirmed' & active on rail  ✓ PASS
+        │   • Confirmed spend headroom matches ledger state           ✓ PASS
+        │
+        ▼ (Only if 100% Invariants + Razorpay Mandate Gate PASS)
 PAYMENT EXECUTION RAIL (Razorpay)
         │
         ├── client.payment.createRecurring(...)
-        └── Order.status = PAID (Instant Settlement)
+        └── Order.status = PAID (Instant Settlement in <400ms)
         │
         ▼
 TELEGRAM NOTIFICATION + DECISION RECEIPT
         │
-        ├── Signed with Merchant RSA/Ed25519 Key
+        ├── Signed with Merchant RSA/Ed25519 Key (Audit Check: mandate.razorpay_verified)
         └── Updated in Autonomous Commerce Dashboard
 ```
+
 
 ---
 

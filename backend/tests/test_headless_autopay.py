@@ -167,21 +167,54 @@ async def test_telegram_autopay_command_and_zero_click_flow(test_db_session: Asy
     await seed_data(test_db_session)
     handlers = TelegramHandlers(api_base="http://test")
 
-    # 1. Setup / Activate AutoPay
+    # 1. Setup / Activate AutoPay (Enters PENDING_AUTH awaiting human authorization)
     setup_res = await handlers.handle_autopay_setup_amount(100000, DEMO_BUYER_ID)
-    assert "ACTIVATED" in setup_res["text"] or "ACTIVE" in setup_res["text"]
+    assert "AWAITING" in setup_res["text"] or "ACTIVE" in setup_res["text"]
+    assert "Authorize Mandate on Razorpay" in str(setup_res.get("reply_markup"))
 
-    # 2. Status command
+    # 2. Simulate human authorization on Razorpay portal
+    async with handlers._get_client() as client:
+        await client.post(f"/mandates/checkout/{DEMO_BUYER_ID}/authorize")
+
+    # 3. Status command confirms ACTIVE
     status_card = await handlers.handle_autopay_status(DEMO_BUYER_ID)
     assert "AUTONOMOUS UPI AUTOPAY: ACTIVE" in status_card["text"]
     assert "tok_rzp_autopay_" in status_card["text"]
 
-    # 3. Toggle off
+    # 4. Toggle off / Revoke
     toggle_off = await handlers.handle_autopay_toggle(False, DEMO_BUYER_ID)
-    assert "Disabled" in toggle_off["text"] or "Not Authorized" in toggle_off["text"] or "PAUSED" in toggle_off["text"]
+    assert "REVOKED" in toggle_off["text"] or "PAUSED" in toggle_off["text"]
 
-    # 4. Toggle back on
+    # 5. Toggle back on enters PENDING_AUTH with authorization link
     toggle_on = await handlers.handle_autopay_toggle(True, DEMO_BUYER_ID)
-    assert "ACTIVE" in toggle_on["text"]
+    assert "AWAITING" in toggle_on["text"] or "PENDING_AUTH" in toggle_on["text"]
+
+    # 6. Authorize and verify
+    async with handlers._get_client() as client:
+        await client.post(f"/mandates/checkout/{DEMO_BUYER_ID}/authorize")
+
+    verify_res = await handlers.handle_autopay_verify(DEMO_BUYER_ID)
+    assert "LIVE RAZORPAY MANDATE VERIFICATION: PASSED" in verify_res["text"]
+    assert "CONFIRMED" in verify_res["text"]
+
+
+@pytest.mark.asyncio
+async def test_live_razorpay_mandate_verification_endpoint(test_db_session: AsyncSession):
+    """Verifies REST endpoint /mandates/autopay/verify validates active recurring token with Razorpay."""
+    await seed_data(test_db_session)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Activate AutoPay first
+        await ac.post("/mandates/autopay/setup", json={"buyer_id": DEMO_BUYER_ID, "max_amount_paise": 10000000, "simulate_auth": True})
+
+        # Test live mandate verification
+        res = await ac.get(f"/mandates/autopay/verify?buyer_id={DEMO_BUYER_ID}")
+        assert res.status_code == 200
+        data = res.json()
+        assert data["verified"] is True
+        assert data["status"] == "CONFIRMED"
+        assert "tok_rzp_autopay_" in data["token_id"]
+        assert data["rail"] == "razorpay_test_mode"
+
+
 
 
