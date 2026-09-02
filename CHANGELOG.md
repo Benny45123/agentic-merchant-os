@@ -41,11 +41,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   - Updated `docs/23_HEADLESS_RAZORPAY_UPI_AUTOPAY.md` and `agent_tasks/agent_20_headless_autopay.md` with complete 3-layer mandate verification specs.
   - Added test coverage in `tests/test_headless_autopay.py` (`test_live_razorpay_mandate_verification_endpoint` and `test_telegram_autopay_verify_handler`).
 
+- **Google AP2 Specification & Architectural Task Planning**:
+  - Authored Document 24 (`docs/24_GOOGLE_AP2_MANDATE_CHAINS.md`) establishing the formal Google Agent Payments Protocol (AP2) Open vs. Closed ES256 Mandate specification.
+  - Authored Agent Task 21 (`agent_tasks/agent_21_google_ap2_mandates.md`) detailing the implementation roadmap for ECDSA P-256 delegation chains, canonical cart digests, Guardian dual-chain gate, and 4-leaf Merkle Tree integration.
+
+- **Google AP2 Open vs. Closed Mandate Chains (ES256) Full Implementation**:
+  - Built pure-Python cryptographic engine (`app/mandate/ap2_service.py`) generating NIST P-256 (secp256r1) keypairs, computing canonical cart digests (`SHA-256(canonical_json(items))`), and minting/verifying Open and Closed Mandate JWTs with sub-3ms evaluation latency.
+  - Extended `Mandate` model (`app/models/mandate.py`) and schemas (`app/mandate/schemas.py`) with optional `open_mandate_jwt`, `user_public_key_pem`, and `agent_public_key_pem` fields with non-breaking backwards compatibility.
+  - Added SQLite lifespan dynamic schema migration in `app/main.py` and created Alembic migration `003_add_google_ap2_mandate_fields.py`.
+  - Added REST endpoints in `app/mandate/router.py`: `GET /mandate/ap2/open/{buyer_id}`, `POST /mandate/ap2/mint-closed`, and `POST /mandate/ap2/verify-chain`.
+  - Integrated 6-point Google AP2 Dual-Chain Verification Gate directly into Commerce Guardian (`app/guardian/pipeline.py`), appending `ap2.open_mandate_signature`, `ap2.closed_mandate_signature`, `ap2.cart_digest_verified`, and `ap2.chain_linkage_verified` to invariant audits and blocking cart tampering deterministically.
+  - Integrated AP2 cryptographic metadata into Decision Receipts (`app/receipts/service.py`) and expanded the Merkle Tree Proof visualizer (`frontend/src/components/MerkleTreeVisualizer.tsx`) to a 4-leaf balanced Merkle Tree incorporating Leaf D ($H_{\text{AP2}}$).
+  - Added `get_ap2_mandate_chain` tool to Claude MCP server (`app/api/mcp_server.py`) and added the Google AP2 Cryptographic Chain badge to Telegram mobile gateway `/autopay` status messages (`app/telegram/handlers.py`).
+  - Added 10-test automated verification suite in `backend/tests/test_google_ap2_mandates.py` covering key generation, canonical cart hashing, chain verification, SKU tampering detection, and price tampering defense.
+  - Added Scenario 11 (`scripts/scenario_google_ap2_mandates.py`) and integrated it into the 11-scenario end-to-end test runner (`scripts/run_scenarios.py` and `bin/run_scenarios.sh`).
+
+
 ### Fixed
 - **Razorpay Modal "The id provided does not exist" Error**: Removed non-existent client-side `customer_id` and provisioned a real Razorpay test order (`order_id`) for ₹1.00 NPCI test auth.
 - **500 Internal Server Error in `/mandates/autopay/status`**: Initialized `settings = get_settings()` at module scope within router handler.
 - **500 Internal Server Error in `/mandates/checkout/{token}`**: Imported missing `or_` from `sqlalchemy`.
 - **Telegram Inline Keyboard Localhost Rejection**: Handled localhost URL restrictions with fallback callback buttons to prevent Telegram API 400 errors.
+- **Pytest Schema Import in `test_google_ap2_mandates.py`**: Replaced incorrect `PolicyCreate` import with `MerchantPolicyUpdate` and wired `test_db_session` fixture and `seed_data` autouse fixture for clean in-memory database test isolation.
+- **Scenario 11 Receipt Unpacking Fix**: Updated `scripts/scenario_google_ap2_mandates.py` to retrieve the decision receipt directly via `receipt_id` returned by the Commerce Guardian and safely handle the `ReceiptListResponse` schema dictionary.
+- **Merchant Dashboard Store Revenue NaN & Missing Handlers**: Resolved `Store Revenue: ₹NaN` by reading `total_revenue` (and mapping `store_revenue` on both FastAPI backend and Next.js frontend), implemented missing `handleSetupMandate` and `handleToggleMandate` handlers, and clamped mandate utilization progress bar bounds between 0% and 100%.
+- **Merchant Dashboard AutoPay Center Light Theme Alignment**: Redesigned the Headless AutoPay e-Mandate telemetry center, active shopper cards, and registration modal in `frontend/src/app/(merchant)/dashboard/page.tsx` from dark slate into the clean, modern white/indigo SaaS aesthetic matching the rest of the Merchant Dashboard.
+- **Merchant Dashboard AutoPay Card Padding & Text Spacing**: Replaced non-existent `p-4.5` with generous `p-5 sm:p-6` padding, added responsive flex-wrapping with gap spacing to prevent title and badge squishing, and formatted VPA, Headroom balance, and action links with dedicated container borders to prevent text touching outer borders.
 
 ---
 

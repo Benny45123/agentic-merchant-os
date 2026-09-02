@@ -33,6 +33,7 @@ async def create_receipt(
     razorpay_order_id: Optional[str],
     failure_reason: Optional[str],
     session: AsyncSession,
+    ap2_metadata: Optional[Dict[str, Any]] = None,
 ) -> Receipt:
     """
     Creates an immutable Decision Receipt capturing full frozen context.
@@ -53,6 +54,13 @@ async def create_receipt(
             "expires_at": mandate.expires_at.isoformat() if mandate.expires_at else None,
             "confirmation_required_above": mandate.confirmation_required_above,
             "active": mandate.active,
+            # Google AP2 Cryptographic Delegations
+            "open_mandate_jwt": getattr(mandate, "open_mandate_jwt", None),
+            "open_mandate_jti": ap2_metadata.get("open_jti") if ap2_metadata else None,
+            "closed_mandate_jti": ap2_metadata.get("closed_jti") if ap2_metadata else None,
+            "cart_digest": ap2_metadata.get("cart_digest") if ap2_metadata else None,
+            "ap2_merkle_leaf": ap2_metadata.get("ap2_merkle_leaf") if ap2_metadata else None,
+            "ap2_standard": "GOOGLE_AP2_ES256",
         }
 
     policy_snapshot = None

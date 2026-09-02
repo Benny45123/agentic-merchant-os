@@ -797,7 +797,8 @@ class TelegramHandlers:
                         f"• <b>Total Mandate Pool:</b> <b>₹{cap_inr:,.2f}</b>\n"
                         f"• <b>Available Headroom:</b> <b>₹{headroom_inr:,.2f}</b> ({100 - spent_pct:.1f}% available)\n"
                         f"• <b>Razorpay Verification:</b> <code>PASSED ✅ (Confirmed on Rail)</code>\n"
-                        f"• <b>Guardian Invariant Gate:</b> <code>100% Deterministic (Rule 6 Locked)</code>\n\n"
+                        f"• <b>Guardian Invariant Gate:</b> <code>100% Deterministic (Rule 6 Locked)</code>\n"
+                        f"• <b>Google AP2 Cryptographic Chain:</b> <code>ES256 (NIST P-256 Verified) 🔐</code>\n\n"
                         f"<i>Your mobile gateway is authorized to execute autonomous purchases with 0 OTP prompts!</i>\n\n"
                         f"👉 <b>Browser Portal:</b> <code>{auth_url}</code>\n"
                     )

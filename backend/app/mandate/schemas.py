@@ -26,6 +26,9 @@ class MandateSchema(BaseModel):
     recurring_auth_status: str = "NONE"
     autopay_bank_name: Optional[str] = None
     autopay_vpa: Optional[str] = None
+    open_mandate_jwt: Optional[str] = None
+    user_public_key_pem: Optional[str] = None
+    agent_public_key_pem: Optional[str] = None
     created_at: datetime
 
 
@@ -47,6 +50,9 @@ class MandateCreate(BaseModel):
     recurring_auth_status: str = "NONE"
     autopay_bank_name: Optional[str] = None
     autopay_vpa: Optional[str] = None
+    open_mandate_jwt: Optional[str] = None
+    user_public_key_pem: Optional[str] = None
+    agent_public_key_pem: Optional[str] = None
 
 
 
@@ -62,3 +68,32 @@ class MandateCheckResult(BaseModel):
     requires_confirmation: bool = False
     checks: List[MandateCheckItem] = Field(default_factory=list)
     failure_reason: Optional[str] = None
+
+
+class AP2MintClosedRequest(BaseModel):
+    open_mandate_jwt: Optional[str] = None
+    buyer_id: str = "b_001"
+    items: List[dict]
+    amount_paise: int
+    intent_id: Optional[str] = None
+    currency: str = "INR"
+
+
+class AP2VerifyChainRequest(BaseModel):
+    open_mandate_jwt: str
+    closed_mandate_jwt: str
+    items: List[dict]
+    amount_paise: int
+    user_public_key_pem: Optional[str] = None
+    agent_public_key_pem: Optional[str] = None
+
+
+class AP2ChainResponse(BaseModel):
+    valid: bool
+    reason: str
+    open_jti: Optional[str] = None
+    closed_jti: Optional[str] = None
+    cart_digest: Optional[str] = None
+    ap2_merkle_leaf: Optional[str] = None
+    checks: dict = Field(default_factory=dict)
+

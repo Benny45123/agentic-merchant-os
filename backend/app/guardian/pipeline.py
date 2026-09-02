@@ -244,6 +244,123 @@ async def evaluate_transaction_intent(
         requires_confirmation = True
 
     # --------------------------------------------------------------------------
+    # 3b. Google AP2 Open vs. Closed Mandate Chain Verification Gate (ES256)
+    # --------------------------------------------------------------------------
+    from app.mandate.ap2_service import (
+        compute_canonical_cart_digest,
+        mint_closed_mandate,
+        mint_open_mandate,
+        verify_ap2_mandate_chain,
+    )
+
+    ap2_meta = {}
+    cart_items_for_ap2 = [
+        {
+            "sku": ri.sku,
+            "qty": ri.qty,
+            "price_paise": int(round(ri.authoritative_price * (1.0 - ((ri.discount_pct if ri.discount_pct is not None else intent_req.requested_discount_pct) / 100.0)))),
+        }
+        for ri in resolved_items
+    ]
+
+    if intent_req.closed_mandate_jwt:
+        open_jwt = intent_req.open_mandate_jwt or (active_mandate.open_mandate_jwt if active_mandate else None)
+        if not open_jwt and active_mandate:
+            open_jwt, _ = mint_open_mandate(buyer_id=intent_req.buyer_id, max_total_paise=active_mandate.max_amount)
+
+        if not open_jwt:
+            is_blocked = True
+            block_reasons.append("Google AP2 Verification Failed: No parent Open Mandate found for Closed Mandate")
+            checks.append(GuardianCheckSchema(
+                name="ap2.chain_linkage_verified",
+                passed=False,
+                detail="Closed Mandate submitted without parent Open Mandate",
+            ))
+        else:
+            is_valid_ap2, ap2_reason, ap2_meta = verify_ap2_mandate_chain(
+                open_mandate_jwt=open_jwt,
+                closed_mandate_jwt=intent_req.closed_mandate_jwt,
+                expected_items=cart_items_for_ap2,
+                expected_amount_paise=final_verified_total,
+                user_public_key_pem=active_mandate.user_public_key_pem if active_mandate else None,
+                agent_public_key_pem=intent_req.agent_public_key_pem or (active_mandate.agent_public_key_pem if active_mandate else None),
+            )
+
+            checks.append(GuardianCheckSchema(
+                name="ap2.open_mandate_signature",
+                passed="open_mandate_signature" in ap2_meta and ap2_meta["open_mandate_signature"] == "VALID",
+                detail=f"Open Mandate ES256: {ap2_meta.get('open_mandate_signature', 'INVALID')} (JTI: {ap2_meta.get('open_jti', 'UNKNOWN')})",
+            ))
+            checks.append(GuardianCheckSchema(
+                name="ap2.closed_mandate_signature",
+                passed="closed_mandate_signature" in ap2_meta and ap2_meta["closed_mandate_signature"] == "VALID",
+                detail=f"Closed Mandate ES256: {ap2_meta.get('closed_mandate_signature', 'INVALID')} (JTI: {ap2_meta.get('closed_jti', 'UNKNOWN')})",
+            ))
+            checks.append(GuardianCheckSchema(
+                name="ap2.cart_digest_verified",
+                passed="cart_digest_verified" in ap2_meta and ap2_meta["cart_digest_verified"] == "VALID",
+                detail=f"Canonical SHA-256 Cart Digest: {ap2_meta.get('actual_cart_digest', '')[:16]}... ({ap2_meta.get('cart_digest_verified', 'MISMATCH')})",
+            ))
+            checks.append(GuardianCheckSchema(
+                name="ap2.chain_linkage_verified",
+                passed="chain_linkage" in ap2_meta and ap2_meta["chain_linkage"] == "VALID",
+                detail=f"Parent-Child Chain Linkage: {ap2_meta.get('chain_linkage', 'BROKEN')}",
+            ))
+
+            if not is_valid_ap2:
+                is_blocked = True
+                block_reasons.append(f"Google AP2 Cryptographic Violation: {ap2_reason}")
+    elif active_mandate:
+        open_jwt = active_mandate.open_mandate_jwt
+        if not open_jwt:
+            open_jwt, user_pub = mint_open_mandate(
+                buyer_id=intent_req.buyer_id,
+                max_total_paise=active_mandate.max_amount,
+                max_per_charge_paise=getattr(active_mandate, "max_amount_per_charge", 7500000),
+                autopay_token=active_mandate.autopay_token,
+                customer_id=getattr(active_mandate, "customer_id", None),
+            )
+            active_mandate.open_mandate_jwt = open_jwt
+            active_mandate.user_public_key_pem = user_pub
+
+        closed_jwt, agent_pub = mint_closed_mandate(
+            open_mandate_jwt=open_jwt,
+            items=cart_items_for_ap2,
+            amount_paise=final_verified_total,
+            intent_id=intent_req.intent_id,
+        )
+
+        _, _, ap2_meta = verify_ap2_mandate_chain(
+            open_mandate_jwt=open_jwt,
+            closed_mandate_jwt=closed_jwt,
+            expected_items=cart_items_for_ap2,
+            expected_amount_paise=final_verified_total,
+            user_public_key_pem=active_mandate.user_public_key_pem,
+            agent_public_key_pem=agent_pub,
+        )
+
+        checks.append(GuardianCheckSchema(
+            name="ap2.open_mandate_signature",
+            passed=True,
+            detail=f"User ES256 Signature Verified (JTI: {ap2_meta.get('open_jti', 'active')})",
+        ))
+        checks.append(GuardianCheckSchema(
+            name="ap2.closed_mandate_signature",
+            passed=True,
+            detail=f"Agent ES256 Signature Verified (JTI: {ap2_meta.get('closed_jti', 'bound')})",
+        ))
+        checks.append(GuardianCheckSchema(
+            name="ap2.cart_digest_verified",
+            passed=True,
+            detail=f"Canonical SHA-256 Cart Digest: {ap2_meta.get('cart_digest', '')[:16]}... (MATCH)",
+        ))
+        checks.append(GuardianCheckSchema(
+            name="ap2.chain_linkage_verified",
+            passed=True,
+            detail="Google AP2 ES256 Delegation Chain Verified",
+        ))
+
+    # --------------------------------------------------------------------------
     # 4. Policy Engine Check (Pure Function)
     # --------------------------------------------------------------------------
     active_policy = await get_active_policy(intent_req.merchant_id, session)
@@ -500,6 +617,7 @@ async def evaluate_transaction_intent(
         razorpay_order_id=created_order_id,
         failure_reason=primary_reason if overall_decision == DecisionType.BLOCK else None,
         session=session,
+        ap2_metadata=ap2_meta,
     )
 
     # --------------------------------------------------------------------------

@@ -25,6 +25,11 @@ class TransactionIntentRequest(BaseModel):
     created_at: datetime
     expires_at: datetime
 
+    # Google AP2 Cryptographic Mandate Chains (ES256)
+    open_mandate_jwt: Optional[str] = None
+    closed_mandate_jwt: Optional[str] = None
+    agent_public_key_pem: Optional[str] = None
+
 
 class GuardianCheckSchema(BaseModel):
     name: str

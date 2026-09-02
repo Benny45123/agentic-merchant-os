@@ -20,12 +20,13 @@ import scenario_insufficient_autopay_funds
 import scenario_a2a_negotiation
 import scenario_telegram_gateway
 import scenario_headless_autopay
+import scenario_google_ap2_mandates
 
 
 def main() -> int:
     base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
     print("\n==================================================================")
-    print(f"🚀 RUNNING ALL 10 END-TO-END SCENARIOS & EDGE CASES against {base_url}")
+    print(f"🚀 RUNNING ALL 11 END-TO-END SCENARIOS & EDGE CASES against {base_url}")
     print("==================================================================")
 
     results = []
@@ -70,6 +71,10 @@ def main() -> int:
     s10 = scenario_headless_autopay.run_scenario(base_url)
     results.append(("Scenario 10: Headless Razorpay UPI AutoPay (0-Click)", s10))
 
+    # Scenario 11: Google AP2 Open vs. Closed Mandate Chains (ES256 & Cart Digest Defense)
+    s11 = scenario_google_ap2_mandates.run_scenario(base_url)
+    results.append(("Scenario 11: Google AP2 Mandate Chains & Cart Digest Defense", s11))
+
     print("\n==================================================================")
     print("📋 SUMMARY RESULTS:")
     print("==================================================================")
@@ -82,7 +87,7 @@ def main() -> int:
 
     print("==================================================================")
     if all_passed:
-        print("🎉 ALL 10 SCENARIOS & EDGE CASES COMPLETED SUCCESSFULLY WITH 100% PASS RATE!")
+        print("🎉 ALL 11 SCENARIOS & EDGE CASES COMPLETED SUCCESSFULLY WITH 100% PASS RATE!")
         return 0
     else:
         print("❌ ONE OR MORE SCENARIOS FAILED.")

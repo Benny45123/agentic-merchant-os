@@ -45,6 +45,10 @@ class Mandate(Base, TimestampMixin):
     autopay_bank_name: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     autopay_vpa: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
+    # Google AP2 Cryptographic Mandate Chains (ES256)
+    open_mandate_jwt: Mapped[Optional[str]] = mapped_column(String(4096), nullable=True)
+    user_public_key_pem: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    agent_public_key_pem: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     # Relationships
     buyer: Mapped["Buyer"] = relationship("Buyer", back_populates="mandates")
