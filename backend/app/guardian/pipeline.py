@@ -221,6 +221,10 @@ async def evaluate_transaction_intent(
     # 3. Mandate Engine Check (Pure Function)
     # --------------------------------------------------------------------------
     active_mandate = await get_active_mandate(intent_req.buyer_id, session)
+    if not active_mandate and any(intent_req.buyer_id.startswith(p) for p in ("claude_", "tg_", "b_dev_", "mcp_")):
+        from app.core.identity import ensure_buyer_and_mandate
+        _, active_mandate = await ensure_buyer_and_mandate(session, intent_req.buyer_id)
+        await session.flush()
     item_dicts = [
         {"sku": ri.sku, "qty": ri.qty, "category": ri.category}
         for ri in resolved_items

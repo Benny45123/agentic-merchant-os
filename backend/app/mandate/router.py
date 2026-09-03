@@ -18,6 +18,11 @@ async def get_active_buyer_mandate(
 ):
     """Retrieve active mandate for a buyer."""
     mandate = await get_active_mandate(buyer_id, session)
+    if not mandate and (buyer_id.startswith("b_dev_") or buyer_id.startswith("tg_") or buyer_id.startswith("claude_")):
+        from app.core.identity import ensure_buyer_and_mandate
+        _, mandate = await ensure_buyer_and_mandate(session, buyer_id)
+        await session.commit()
+
     if not mandate:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

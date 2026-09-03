@@ -143,7 +143,7 @@ class TelegramHandlers:
         except Exception as e:
             return {"text": f"⚠️ <i>Error loading product: {html.escape(str(e))}</i>"}
 
-    async def handle_direct_buy(self, sku: str, qty: int = 1) -> Dict[str, Any]:
+    async def handle_direct_buy(self, sku: str, qty: int = 1, buyer_id: str = "b_001") -> Dict[str, Any]:
         """Executes a direct purchase at full catalog retail price with 0% discount."""
         try:
             async with self._get_client() as client:
@@ -162,7 +162,7 @@ class TelegramHandlers:
                 # 2. Submit TransactionIntent directly to Commerce Guardian
                 intent_payload = {
                     "intent_id": f"intent_tg_buy_{uuid.uuid4().hex[:10]}",
-                    "buyer_id": "b_001",
+                    "buyer_id": buyer_id,
                     "merchant_id": "m_001",
                     "items": [
                         {
@@ -292,15 +292,38 @@ class TelegramHandlers:
 
 
 
+                elif decision == "REQUIRE_CONFIRMATION":
+                    settings = getattr(self, "settings", None) or get_settings()
+                    base_url = settings.BACKEND_PUBLIC_URL.rstrip("/")
+                    checkout_url = g_data.get("payment_link") or f"{base_url}/payments/checkout/{raw_receipt_id}"
+                    text = (
+                        f"⚠️ <b>HIGH-VALUE ORDER • CONFIRMATION REQUIRED</b>\n"
+                        f"━━━━━━━━━━━━━━━━━━━━\n"
+                        f"📦 <b>Item:</b> {html.escape(product['name'])} (Qty: {qty})\n"
+                        f"💰 <b>Total Payable:</b> <b>₹{total_inr:,.2f}</b>\n"
+                        f"🛡️ <b>Guardian Status:</b> <code>REQUIRE_CONFIRMATION</code>\n"
+                        f"🧾 <b>Decision Receipt:</b> <code>{receipt_id}</code>\n\n"
+                        f"🔒 <i>This high-value order exceeds the autonomous spending threshold. Please tap the button below to review and pay via Razorpay:</i>"
+                    )
+                    keyboard = {
+                        "inline_keyboard": [
+                            [{"text": f"💳 Confirm & Pay ₹{total_inr:,.2f} on Razorpay", "url": checkout_url}],
+                            [{"text": "🔄 Check Payment Status", "callback_data": f"chkpay:{raw_receipt_id}:{raw_receipt_id}"}],
+                            [{"text": "🛍️ Back to Catalog", "callback_data": "cmd:catalog"}]
+                        ]
+                    }
+                    return {"text": text, "reply_markup": keyboard}
+
                 else:
                     reason = html.escape(g_data.get("primary_reason", "Safety invariant check failed"))
                     return {
                         "text": (
                             f"🚫 <b>TRANSACTION BLOCKED BY GUARDIAN</b>\n"
                             f"━━━━━━━━━━━━━━━━━━━━\n"
-                            f"🛡️ <b>Guardian Decision:</b> <code>{html.escape(str(decision))}</code>\n"
+                            f"🛡️ <b>Guardian Decision:</b> <code>BLOCK</code>\n"
                             f"⚠️ <b>Reason:</b> <i>{reason}</i>\n"
-                            f"🧾 <b>Decision Receipt ID:</b> <code>{receipt_id}</code>"
+                            f"🧾 <b>Decision Receipt ID:</b> <code>{receipt_id}</code>\n\n"
+                            f"🔒 <b>Protection:</b> Zero financial leakage. Payment is strictly disabled."
                         ),
                         "reply_markup": {"inline_keyboard": [[{"text": "🛍️ Back to Catalog", "callback_data": "cmd:catalog"}]]}
                     }
@@ -309,7 +332,7 @@ class TelegramHandlers:
             logger.error(f"Direct buy error: {e}")
             return {"text": f"⚠️ <i>Error executing purchase: {html.escape(str(e))}</i>"}
 
-    async def handle_rfq_bargain(self, sku: str, qty: int = 1) -> Dict[str, Any]:
+    async def handle_rfq_bargain(self, sku: str, qty: int = 1, buyer_id: str = "b_001") -> Dict[str, Any]:
         """Submits an RFQ to the Merchant Pricing Agent and returns counter-offers with sweetener bundle."""
         try:
             async with self._get_client() as client:
@@ -326,9 +349,9 @@ class TelegramHandlers:
                 # 2. Submit RFQ with full procurement envelope
                 rfq_payload = {
                     "merchant_id": "m_001",
-                    "buyer_agent_id": "b_001",
+                    "buyer_agent_id": buyer_id,
                     "buyer_mandate": {
-                        "buyer_id": "b_001",
+                        "buyer_id": buyer_id,
                         "max_amount": 10000000,
                         "max_quantity_per_item": 10,
                         "currency": "INR",
@@ -407,13 +430,14 @@ class TelegramHandlers:
             logger.error(f"RFQ Bargain error: {e}")
             return {"text": f"⚠️ <i>Error executing negotiation: {html.escape(str(e))}</i>"}
 
-    async def handle_accept_offer(self, session_id: str, option_id: str) -> Dict[str, Any]:
+    async def handle_accept_offer(self, session_id: str, option_id: str, buyer_id: str = "b_001") -> Dict[str, Any]:
         """Finalizes transaction through the Commerce Guardian and issues Razorpay checkout link or Block alert."""
         try:
             async with self._get_client() as client:
                 accept_payload = {
                     "session_id": session_id,
-                    "buyer_agent_id": "b_001",
+                    "buyer_agent_id": buyer_id,
+                    "buyer_id": buyer_id,
                     "merchant_id": "m_001",
                     "selected_option_id": option_id,
                     "buyer_signature": "sig_telegram_mobile_contract_signed",

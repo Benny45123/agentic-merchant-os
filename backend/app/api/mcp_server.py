@@ -9,9 +9,26 @@ and execute Guardian-authorized purchases against Agentic Merchant OS.
 import sys
 import json
 import os
+import getpass
+import hashlib
+import socket
 import httpx
 
 API_BASE = os.environ.get("MERCHANT_API_BASE", "http://localhost:8000")
+
+def get_persistent_mcp_identity() -> str:
+    """Derives a deterministic, persistent buyer identity for this machine/agent."""
+    env_id = os.environ.get("AMOS_BUYER_ID")
+    if env_id and env_id.strip():
+        return env_id.strip()
+    try:
+        user = getpass.getuser().lower().replace(" ", "_")
+        host = socket.gethostname().lower()
+        host_hash = hashlib.md5(host.encode()).hexdigest()[:4]
+        return f"claude_{user}_{host_hash}"
+    except Exception:
+        return "b_001"
+
 
 # MCP Tool Definitions
 TOOLS = [
@@ -294,7 +311,7 @@ def handle_tool_call(name, args):
             elif name == "submit_machine_purchase":
                 sku = args["sku"]
                 qty = args.get("quantity", 1)
-                buyer_id = args.get("buyer_id", "b_001")
+                buyer_id = args.get("buyer_id") or get_persistent_mcp_identity()
                 budget = args.get("max_budget_paise", 1000000)
 
                 # Fetch authoritative catalog item first
@@ -302,6 +319,9 @@ def handle_tool_call(name, args):
                 if cat_res.status_code != 200:
                     return {"isError": True, "content": [{"type": "text", "text": f"Product '{sku}' not found in store"}]}
                 product = cat_res.json()
+
+                item_total = product["price"] * qty
+                budget = args.get("max_budget_paise") or max(item_total, 20000000)
 
                 payload = {
                     "buyer_agent_id": "mcp_claude_buyer_01",
@@ -326,6 +346,19 @@ def handle_tool_call(name, args):
                 if res.status_code == 200:
                     data = res.json()
                     decision = data.get("guardian_decision")
+
+                    if decision == "BLOCK" or data.get("status") == "BLOCKED":
+                        reason = data.get("reason", "Transaction blocked by Commerce Guardian")
+                        out = (
+                            f"🚫 GUARDIAN INTERCEPT: TRANSACTION BLOCKED\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"📦 Item: {product.get('name')} (SKU: {sku})\n"
+                            f"⚠️ Block Reason: {reason}\n"
+                            f"🧾 Decision Receipt ID: {data.get('receipt_id')}\n"
+                            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                            f"🔒 ZERO FINANCIAL LEAKAGE: In accordance with deterministic safety policy, Razorpay was NOT called and payment is strictly disabled."
+                        )
+                        return {"isError": True, "content": [{"type": "text", "text": out}]}
                     if decision == "REQUIRE_CONFIRMATION":
                         notif = data.get("high_value_notification") or {}
                         plink = data.get("payment_link") or notif.get("payment_link") or f"{API_BASE}/payments/checkout/{data.get('receipt_id')}"
@@ -381,13 +414,14 @@ def handle_tool_call(name, args):
                 sku = args["sku"]
                 qty = args.get("quantity", 3)
                 target_price = args["target_unit_price_paise"]
-                buyer_agent = args.get("buyer_agent_id", "ai_buyer_agent_procure_42")
+                mcp_buyer = args.get("buyer_id") or get_persistent_mcp_identity()
+                buyer_agent = args.get("buyer_agent_id") or mcp_buyer
 
                 rfq_payload = {
                     "buyer_agent_id": buyer_agent,
                     "merchant_id": "m_001",
                     "buyer_mandate": {
-                        "buyer_id": "b_001",
+                        "buyer_id": mcp_buyer,
                         "max_amount": 2000000,
                         "max_quantity_per_item": 10,
                         "currency": "INR",
@@ -434,8 +468,8 @@ def handle_tool_call(name, args):
             elif name == "accept_negotiation_offer":
                 session_id = args["session_id"]
                 option_id = args["selected_option_id"]
-                buyer_agent = args.get("buyer_agent_id", "ai_buyer_agent_procure_42")
-                buyer_id = args.get("buyer_id", "b_001")
+                buyer_id = args.get("buyer_id") or get_persistent_mcp_identity()
+                buyer_agent = args.get("buyer_agent_id") or buyer_id
 
                 accept_payload = {
                     "session_id": session_id,
@@ -501,7 +535,7 @@ def handle_tool_call(name, args):
                 return {"isError": True, "content": [{"type": "text", "text": f"Margin check error: {res.text}"}]}
 
             elif name == "setup_autopay_mandate":
-                buyer_id = args.get("buyer_id", "b_001")
+                buyer_id = args.get("buyer_id") or get_persistent_mcp_identity()
                 cap = args.get("max_amount_paise", 10000000)
                 vpa = args.get("vpa")
                 res = client.post("/mandates/autopay/setup", json={
@@ -552,7 +586,7 @@ def handle_tool_call(name, args):
                 return {"isError": True, "content": [{"type": "text", "text": f"AutoPay Setup Error: {res.text}"}]}
 
             elif name == "get_autopay_status":
-                buyer_id = args.get("buyer_id", "b_001")
+                buyer_id = args.get("buyer_id") or get_persistent_mcp_identity()
                 res = client.get("/mandates/autopay/status", params={"buyer_id": buyer_id})
                 if res.status_code == 200:
                     data = res.json()
@@ -594,7 +628,7 @@ def handle_tool_call(name, args):
 
 
             elif name == "revoke_autopay_mandate":
-                buyer_id = args.get("buyer_id", "b_001")
+                buyer_id = args.get("buyer_id") or get_persistent_mcp_identity()
                 res = client.post("/mandates/autopay/revoke", params={"buyer_id": buyer_id})
                 if res.status_code == 200:
                     data = res.json()
@@ -647,7 +681,7 @@ def handle_tool_call(name, args):
                 return {"isError": True, "content": [{"type": "text", "text": f"Failed to check payment status: {res.text}"}]}
 
             elif name == "verify_autopay_mandate":
-                buyer_id = args.get("buyer_id", "b_001")
+                buyer_id = args.get("buyer_id") or get_persistent_mcp_identity()
                 res = client.get("/mandates/autopay/verify", params={"buyer_id": buyer_id})
                 if res.status_code == 200:
                     data = res.json()
@@ -676,7 +710,7 @@ def handle_tool_call(name, args):
                 return {"isError": True, "content": [{"type": "text", "text": f"Error verifying mandate: {res.text}"}]}
 
             elif name == "get_ap2_mandate_chain":
-                buyer_id = args.get("buyer_id", "b_001")
+                buyer_id = args.get("buyer_id") or get_persistent_mcp_identity()
                 res = client.get(f"/mandate/ap2/open/{buyer_id}")
                 if res.status_code == 200:
                     data = res.json()

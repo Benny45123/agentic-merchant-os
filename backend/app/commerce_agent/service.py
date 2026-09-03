@@ -172,6 +172,12 @@ async def chat(
     if session_id not in _session_checkpoints:
         _session_checkpoints[session_id] = []
 
+    # Provision persistent buyer & mandate on chat start if needed
+    if buyer_id:
+        from app.core.identity import ensure_buyer_and_mandate
+        await ensure_buyer_and_mandate(session, buyer_id)
+        await session.flush()
+
     from app.commerce_agent.graph import commerce_graph, CommerceGraphState
 
     init_state: CommerceGraphState = {
@@ -252,6 +258,12 @@ async def build_checkout_intent(
         cart_items=cart.items,
         requested_discount_pct=discount_pct,
     )
+
+    # Ensure persistent buyer & active mandate exist for web shoppers
+    if buyer_id:
+        from app.core.identity import ensure_buyer_and_mandate
+        await ensure_buyer_and_mandate(session, buyer_id)
+        await session.flush()
 
     # Forward to deterministic Guardian evaluation
     decision_resp = await evaluate_transaction_intent(intent_req, session)
