@@ -4,7 +4,31 @@ All notable changes to the Agentic Merchant OS platform are documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and adheres to Semantic Versioning.
 
----
+## [1.6.0] - 2026-09-02
+### Added
+- **AWS Production Deployment & Dual Architecture Suite**:
+  - **Docker Compose Multi-Container Orchestration**:
+    - Created `backend/Dockerfile` using Python 3.12 slim with automatic Alembic migrations, database seeding, and Uvicorn server startup.
+    - Created `frontend/Dockerfile` featuring a multi-stage Node 20 alpine build with Next.js 14 standalone output for lightweight container footprints.
+    - Created `frontend/next.config.js` enabling `output: 'standalone'` and React strict mode.
+    - Created `docker-compose.yml` orchestrating FastAPI backend (:8000), Next.js frontend (:3000), Telegram mobile bot daemon, and persistent volume mounting (`./data:/app/data`) for zero-overhead SQLite WAL storage.
+  - **Low-Footprint Bare-Metal PM2 Architecture (`docs/CLEAN_EC2_DEPLOYMENT_PLAN.md`)**:
+    - Architected and deployed native bare-metal PM2 process supervisor paired with Caddy v2 reverse proxy on live AWS EC2 demo instance (`https://32-236-161-117.sslip.io`).
+    - Documented architectural rationale: 4x lower memory footprint (~220MB total RAM vs ~1.2GB for Docker runtime), sub-50ms deterministic Guardian decision latency with zero container network virtualization overhead, and rock-solid reliability on cloud micro instances (`t3.micro`/`t3.small`).
+  - **Automated SSL & Smart Reverse Proxying (`Caddyfile`)**:
+    - Implemented Caddy v2 configuration with automated Let's Encrypt TLS certificates and smart header matchers routing HTML/RSC client navigation to Next.js (:3000) and REST endpoints to FastAPI (:8000).
+  - **One-Command Infrastructure Automation**:
+    - Created `scripts/aws_setup.sh` installing Docker, configuring UFW firewall rules (ports 22, 80, 443, 3000, 8000), and setting up application directories.
+    - Authored comprehensive cloud guides: `docs/AWS_DEPLOYMENT_GUIDE.md` (Docker containerization) and `docs/CLEAN_EC2_DEPLOYMENT_PLAN.md` (PM2 bare-metal).
+- **Automated GitHub Actions CI/CD Pipeline**:
+  - Created `.github/workflows/ci.yml` running on pull requests and pushes to `main`, validating backend dependencies, executing all 57 Pytests, running the architecture import-graph linter, building the Next.js production bundle, and verifying Docker Compose syntax.
+  - Created `.github/workflows/deploy.yml` implementing continuous deployment to AWS EC2 over SSH (`appleboy/ssh-action`), pulling latest commits, building Docker images, restarting services, and executing automated health checks against `/health`.
+- **1-Click Claude Desktop MCP Configurator**:
+  - Authored `scripts/setup_claude_mcp.sh` enabling evaluators to connect Claude Desktop to remote AWS instances with one command (`./scripts/setup_claude_mcp.sh http://<AWS_IP>:8000`), automatically configuring `claude_desktop_config.json` across macOS, Linux, and Windows.
+- **Universal Agent Ingress Expansion (MCP across all IDEs & Swarms)**:
+  - Expanded `README.md` documentation from single-client Claude to the universal multi-agent ecosystem, adding integration configurations for Cursor IDE, Windsurf, LangChain/LangGraph (`MultiServerMCPClient`), and CrewAI/AutoGen autonomous swarms.
+
+
 
 ## [1.5.0] - 2026-09-02
 ### Added

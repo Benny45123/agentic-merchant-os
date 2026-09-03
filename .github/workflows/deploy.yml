@@ -1,0 +1,58 @@
+name: Deploy to AWS EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to AWS EC2 / Lightsail
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH to AWS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AWS_EC2_HOST }}
+          username: ${{ secrets.AWS_EC2_USER || 'ubuntu' }}
+          key: ${{ secrets.AWS_SSH_PRIVATE_KEY }}
+          port: ${{ secrets.AWS_SSH_PORT || 22 }}
+          script: |
+            set -e
+            echo "==> Deploying Agentic Merchant OS to AWS..."
+            APP_DIR="/home/${USER}/agentic-merchant-os"
+            
+            if [ ! -d "$APP_DIR" ]; then
+              echo "==> First-time clone..."
+              git clone https://github.com/${{ github.repository }}.git "$APP_DIR"
+            fi
+            
+            cd "$APP_DIR"
+            echo "==> Pulling latest changes from main..."
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Ensure .env exists if not created
+            if [ ! -f ".env" ]; then
+              echo "==> Generating .env from template..."
+              cp .env.example .env
+            fi
+            
+            # Ensure data directory has proper permissions
+            mkdir -p data
+            
+            echo "==> Building and launching Docker Compose stack..."
+            docker compose down --remove-orphans || true
+            docker compose build
+            docker compose up -d
+            
+            echo "==> Running live health check..."
+            sleep 10
+            curl -f http://localhost:8000/health || (echo "Backend health check failed!" && exit 1)
+            
+            echo "==> Deployment to AWS completed successfully!"
