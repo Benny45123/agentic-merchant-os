@@ -800,6 +800,115 @@ Building a production-grade agentic operating system with zero LLM on the financ
 
 <h2 id="architecture-map">🏗️ Architecture and Component Map</h2>
 
+### 🌐 High-Level End-to-End System Architecture
+
+```mermaid
+graph TD
+    %% -------------------------------------------------------------
+    %% 1. Omnichannel Ingress Layer
+    %% -------------------------------------------------------------
+    subgraph INGRESS ["🌐 Omnichannel Ingress Layer"]
+        WebClient["💻 Next.js Buyer Assistant (Voice & Chat)"]
+        TgClient["📱 Telegram Mobile Gateway (@agentic_merchant_store_bot)"]
+        ClaudeClient["🤖 External AI Agents (Claude MCP / Cursor / LangChain)"]
+        UapClient["🇮🇳 B2B Procurement Bots (NPCI UAP-1.0 Protocol)"]
+    end
+
+    %% -------------------------------------------------------------
+    %% 2. Autonomous Agent & Negotiation Layer
+    %% -------------------------------------------------------------
+    subgraph AGENT_LAYER ["🧠 Autonomous Agent & Negotiation Plane"]
+        CommerceAgent["🛍️ Conversational Commerce Agent (Gemini / Claude / Groq)"]
+        AuctionEngine["🤝 Bilateral Reverse Auction Solver (Rule 6 Margin Optimizer)"]
+    end
+
+    %% -------------------------------------------------------------
+    %% 3. Cryptographic Mandate & Delegation
+    %% -------------------------------------------------------------
+    subgraph CRYPTO_LAYER ["🔐 Cryptographic Mandate Envelopes"]
+        AP2Engine["📜 Google AP2 Hyper-Chain (ES256 / NIST P-256 Canonical Cart Digest)"]
+        AutoPayToken["⚡ Razorpay UPI AutoPay Engine (tok_rzp_autopay_...)"]
+    end
+
+    %% -------------------------------------------------------------
+    %% 4. Deterministic Financial Air-Gap (Rule 6)
+    %% -------------------------------------------------------------
+    subgraph GUARDIAN ["🛡️ Zero-LLM Commerce Guardian (Sub-50ms Air-Gap)"]
+        InvariantEngine["⚙️ Pure Python Math Kernel (22 Deterministic Invariants)"]
+        MarginLock["📈 Rule 6 Margin Floor Gate (Strictly >= 15.0% Lock)"]
+        SecurityScanner["🔍 Catalog Injection Heuristic Scanner (<5ms Filter)"]
+    end
+
+    %% -------------------------------------------------------------
+    %% 5. Authoritative State & Settlement Rail
+    %% -------------------------------------------------------------
+    subgraph SETTLEMENT ["💳 Execution & Financial Rail"]
+        Razorpay["⚡ Razorpay Payment Rail (UPI AutoPay / Hosted Modal)"]
+        DB[("💾 Authoritative Database (SQLite WAL / Products & Orders)")]
+    end
+
+    %% -------------------------------------------------------------
+    %% 6. Cryptographic Audit & Replay Vault
+    %% -------------------------------------------------------------
+    subgraph AUDIT ["🌳 Cryptographic Audit Vault"]
+        MerkleTree["🏛️ Quad-Leaf Merkle Tree Engine (H_Intent, H_Policy, H_Mandate, H_AP2)"]
+        ReceiptStore[("🧾 Immutable Decision Receipts Ledger (Ed25519 Sealed)")]
+    end
+
+    %% -------------------------------------------------------------
+    %% 7. Merchant Control Plane
+    %% -------------------------------------------------------------
+    subgraph CONTROL_PLANE ["📊 Merchant Control Plane"]
+        Dashboard["🖥️ Real-Time Revenue Telemetry & Killswitch Board"]
+        LiveStream["📡 Live Agentic Transaction Stream (DPDP-Masked Mempool)"]
+        ReplayEngine["🔄 1-Click Bit-for-Bit Deterministic Replay Verifier"]
+    end
+
+    %% -------------------------------------------------------------
+    %% Transaction Flow Connections
+    %% -------------------------------------------------------------
+    %% Step 1: Ingress to Agents
+    WebClient -->|"1a. Conversational Cart & Intent"| CommerceAgent
+    TgClient -->|"1b. Direct Buy or Bargain Command"| CommerceAgent
+    ClaudeClient -->|"1c. JSON-RPC Tool Ingress"| CommerceAgent
+    UapClient -->|"1d. Machine RFQ Target Bid"| AuctionEngine
+
+    %% Step 2: Agent formulation
+    CommerceAgent -->|"2a. Formulate TransactionIntent"| AP2Engine
+    AuctionEngine -->|"2b. Margin-Safe Counter-Offer (+₹298 Lift)"| AP2Engine
+
+    %% Step 3: Cryptographic Mandate Assembly
+    AP2Engine -->|"3. Assemble Open & Closed ES256 Mandates"| InvariantEngine
+    AutoPayToken -->|"4. Attach Out-of-Band Recurring Token"| InvariantEngine
+
+    %% Step 4: Guardian Evaluation
+    InvariantEngine --- MarginLock
+    InvariantEngine --- SecurityScanner
+    InvariantEngine -->|"5. Authoritative Stock & Price Verification"| DB
+
+    %% Step 5: Dual Execution Paths (Decision Gate)
+    InvariantEngine -->|"6a. [BLOCKED] Exploit or Margin Breach"| MerkleTree
+    InvariantEngine -->|"6b. [APPROVED] Validated Autonomous Intent"| Razorpay
+
+    %% Step 6: Payment Execution
+    Razorpay -->|"7a. 0-Click Headless Debit (Sub-350ms)"| DB
+    Razorpay -->|"7b. Razorpay Webhook Confirmation"| InvariantEngine
+
+    %% Step 7: Cryptographic Sealing
+    InvariantEngine -->|"8. Generate Balanced 4-Leaf Topology"| MerkleTree
+    MerkleTree -->|"9. Commit Ed25519 Signed Audit Receipt"| ReceiptStore
+
+    %% Step 8: Telemetry & Merchant Control
+    ReceiptStore -->|"10. Push Verified Event to Mempool"| LiveStream
+    LiveStream -->|"11. Real-Time Telemetry & Killswitch Status"| Dashboard
+    Dashboard -->|"12. Audit Decision or Trigger Historical Replay"| ReplayEngine
+    ReplayEngine -->|"13. Bit-for-Bit Re-Evaluation against Frozen Snapshot"| InvariantEngine
+```
+
+---
+
+### 🧩 Core Component Directory Map
+
 | Component                            | Directory                          | Description                                                                                                                       |
 | :----------------------------------- | :--------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------- |
 | **Google AP2 Mandate Engine**  | `backend/app/mandate/`           | Asymmetric NIST P-256 (ES256) keypairs, Open vs. Closed Mandates, canonical SHA-256 cart digests.                                 |
