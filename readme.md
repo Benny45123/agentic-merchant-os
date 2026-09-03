@@ -803,106 +803,211 @@ Building a production-grade agentic operating system with zero LLM on the financ
 ### 🌐 High-Level End-to-End System Architecture
 
 ```mermaid
-graph TD
-    %% -------------------------------------------------------------
-    %% 1. Omnichannel Ingress Layer
-    %% -------------------------------------------------------------
-    subgraph INGRESS ["🌐 Omnichannel Ingress Layer"]
-        WebClient["💻 Next.js Buyer Assistant (Voice & Chat)"]
-        TgClient["📱 Telegram Mobile Gateway (@agentic_merchant_store_bot)"]
-        ClaudeClient["🤖 External AI Agents (Claude MCP / Cursor / LangChain)"]
-        UapClient["🇮🇳 B2B Procurement Bots (NPCI UAP-1.0 Protocol)"]
+flowchart TB
+
+    %% ============================================================
+    %% AGENTIC MERCHANT OS — CRYPTOGRAPHIC RUNTIME ARCHITECTURE
+    %% ============================================================
+
+    %% ------------------------------------------------------------
+    %% 1. OMNICHANNEL INGRESS
+    %% ------------------------------------------------------------
+    subgraph L1["🌐 1 · OMNICHANNEL INGRESS"]
+        direction LR
+
+        WEB["💻 Web Store<br/>Next.js 14<br/>Voice · Chat · Cart"]
+        TG["📱 Telegram Gateway<br/>@agentic_merchant_store_bot"]
+        MCP["🤖 AI Agent Gateway<br/>Claude MCP · Cursor · LangChain"]
+        UAP["🇮🇳 B2B Procurement<br/>NPCI UAP-1.0"]
     end
 
-    %% -------------------------------------------------------------
-    %% 2. Autonomous Agent & Negotiation Layer
-    %% -------------------------------------------------------------
-    subgraph AGENT_LAYER ["🧠 Autonomous Agent & Negotiation Plane"]
-        CommerceAgent["🛍️ Conversational Commerce Agent (Gemini / Claude / Groq)"]
-        AuctionEngine["🤝 Bilateral Reverse Auction Solver (Rule 6 Margin Optimizer)"]
+    %% ------------------------------------------------------------
+    %% 2. AGENTIC REASONING
+    %% ------------------------------------------------------------
+    subgraph L2["🧠 2 · AGENTIC REASONING & NEGOTIATION PLANE"]
+        direction LR
+
+        COMMERCE["🛍️ Conversational Commerce Agent<br/>Intent Extraction · Bundles · Upsell"]
+        AUCTION["🤝 Bilateral Reverse Auction Solver<br/>Dynamic Margin · Counter-Offer"]
+        
+        INTENT[/"TransactionIntent<br/>Canonical JSON Payload"/]
     end
 
-    %% -------------------------------------------------------------
-    %% 3. Cryptographic Mandate & Delegation
-    %% -------------------------------------------------------------
-    subgraph CRYPTO_LAYER ["🔐 Cryptographic Mandate Envelopes"]
-        AP2Engine["📜 Google AP2 Hyper-Chain (ES256 / NIST P-256 Canonical Cart Digest)"]
-        AutoPayToken["⚡ Razorpay UPI AutoPay Engine (tok_rzp_autopay_...)"]
+    %% ------------------------------------------------------------
+    %% 3. CRYPTOGRAPHIC AUTHORIZATION
+    %% ------------------------------------------------------------
+    subgraph L3["🔐 3 · CRYPTOGRAPHIC MANDATE ENVELOPE"]
+        direction LR
+
+        AP2["📜 Google AP2 Hyper-Chain<br/>Open Mandate · Closed Mandate<br/>ES256 / NIST P-256"]
+
+        CART["🔏 Canonical Cart Digest<br/>SHA-256"]
+
+        TOKEN["⚡ Razorpay AutoPay Token<br/>Pre-Authorized Recurring Rail"]
     end
 
-    %% -------------------------------------------------------------
-    %% 4. Deterministic Financial Air-Gap (Rule 6)
-    %% -------------------------------------------------------------
-    subgraph GUARDIAN ["🛡️ Zero-LLM Commerce Guardian (Sub-50ms Air-Gap)"]
-        InvariantEngine["⚙️ Pure Python Math Kernel (22 Deterministic Invariants)"]
-        MarginLock["📈 Rule 6 Margin Floor Gate (Strictly >= 15.0% Lock)"]
-        SecurityScanner["🔍 Catalog Injection Heuristic Scanner (<5ms Filter)"]
+    %% ------------------------------------------------------------
+    %% 4. FINANCIAL AIR-GAP
+    %% ------------------------------------------------------------
+    subgraph L4["🛡️ 4 · CRITICAL ZERO-LLM FINANCIAL AIR-GAP"]
+        direction TB
+
+        GUARDIAN["⚙️ COMMERCE GUARDIAN KERNEL<br/>Pure Python · Deterministic · Sub-50ms"]
+
+        RULES["22 Deterministic Invariants"]
+
+        MARGIN["📈 Rule 6 Margin Lock<br/>Gross Margin ≥ 15.0%"]
+
+        SECURITY["🔍 Catalog Security Scanner<br/>Prompt-Injection Heuristics <5ms"]
+
+        STATE["💾 Authoritative State<br/>SQLite WAL · Stock · Price · Orders"]
     end
 
-    %% -------------------------------------------------------------
-    %% 5. Authoritative State & Settlement Rail
-    %% -------------------------------------------------------------
-    subgraph SETTLEMENT ["💳 Execution & Financial Rail"]
-        Razorpay["⚡ Razorpay Payment Rail (UPI AutoPay / Hosted Modal)"]
-        DB[("💾 Authoritative Database (SQLite WAL / Products & Orders)")]
+    %% ------------------------------------------------------------
+    %% 5. DECISION GATE
+    %% ------------------------------------------------------------
+    DECISION{"🛡️ DETERMINISTIC DECISION"}
+
+    APPROVE["✅ APPROVE<br/>Validated Financial Intent"]
+    BLOCK["⛔ BLOCK / FAIL<br/>Zero Financial Leakage"]
+
+    %% ------------------------------------------------------------
+    %% 6. SETTLEMENT
+    %% ------------------------------------------------------------
+    subgraph L5["💳 5 · SETTLEMENT & EXECUTION RAIL"]
+        direction LR
+
+        RAZORPAY["⚡ Razorpay Payment Rail"]
+
+        AUTOPAY["0-Click UPI AutoPay<br/>Sub-350ms"]
+
+        HOSTED["1-Click Hosted Checkout<br/>HMAC Protected"]
     end
 
-    %% -------------------------------------------------------------
-    %% 6. Cryptographic Audit & Replay Vault
-    %% -------------------------------------------------------------
-    subgraph AUDIT ["🌳 Cryptographic Audit Vault"]
-        MerkleTree["🏛️ Quad-Leaf Merkle Tree Engine (H_Intent, H_Policy, H_Mandate, H_AP2)"]
-        ReceiptStore[("🧾 Immutable Decision Receipts Ledger (Ed25519 Sealed)")]
+    %% ------------------------------------------------------------
+    %% 7. CRYPTOGRAPHIC AUDIT
+    %% ------------------------------------------------------------
+    subgraph L6["🌳 6 · IMMUTABLE CRYPTOGRAPHIC AUDIT VAULT"]
+        direction LR
+
+        MERKLE["🌳 Balanced 4-Leaf<br/>SHA-256 Merkle Tree"]
+
+        LEAVES["H_Intent · H_Policy<br/>H_Mandate · H_AP2"]
+
+        RECEIPT["🧾 Ed25519 Signed<br/>Decision Receipt"]
+
+        REPLAY["🔄 Bit-for-Bit<br/>Deterministic Replay"]
     end
 
-    %% -------------------------------------------------------------
-    %% 7. Merchant Control Plane
-    %% -------------------------------------------------------------
-    subgraph CONTROL_PLANE ["📊 Merchant Control Plane"]
-        Dashboard["🖥️ Real-Time Revenue Telemetry & Killswitch Board"]
-        LiveStream["📡 Live Agentic Transaction Stream (DPDP-Masked Mempool)"]
-        ReplayEngine["🔄 1-Click Bit-for-Bit Deterministic Replay Verifier"]
+    %% ------------------------------------------------------------
+    %% 8. MERCHANT CONTROL PLANE
+    %% ------------------------------------------------------------
+    subgraph L7["📊 7 · MERCHANT CONTROL & TELEMETRY PLANE"]
+        direction LR
+
+        STREAM["📡 Live Agentic<br/>Transaction Stream<br/>DPDP / GDPR Masked"]
+
+        DASH["🖥️ Merchant Command Dashboard<br/>Revenue · Attach Rate · Mandates"]
+
+        KILL["🚨 Mandate Headroom<br/>Killswitch Controls"]
     end
 
-    %% -------------------------------------------------------------
-    %% Transaction Flow Connections
-    %% -------------------------------------------------------------
-    %% Step 1: Ingress to Agents
-    WebClient -->|"1a. Conversational Cart & Intent"| CommerceAgent
-    TgClient -->|"1b. Direct Buy or Bargain Command"| CommerceAgent
-    ClaudeClient -->|"1c. JSON-RPC Tool Ingress"| CommerceAgent
-    UapClient -->|"1d. Machine RFQ Target Bid"| AuctionEngine
 
-    %% Step 2: Agent formulation
-    CommerceAgent -->|"2a. Formulate TransactionIntent"| AP2Engine
-    AuctionEngine -->|"2b. Margin-Safe Counter-Offer (+₹298 Lift)"| AP2Engine
+    %% ============================================================
+    %% PRIMARY TRANSACTION SPINE
+    %% ============================================================
 
-    %% Step 3: Cryptographic Mandate Assembly
-    AP2Engine -->|"3. Assemble Open & Closed ES256 Mandates"| InvariantEngine
-    AutoPayToken -->|"4. Attach Out-of-Band Recurring Token"| InvariantEngine
+    WEB --> COMMERCE
+    TG --> COMMERCE
+    MCP --> COMMERCE
+    UAP --> AUCTION
 
-    %% Step 4: Guardian Evaluation
-    InvariantEngine --- MarginLock
-    InvariantEngine --- SecurityScanner
-    InvariantEngine -->|"5. Authoritative Stock & Price Verification"| DB
+    COMMERCE --> INTENT
+    AUCTION --> INTENT
 
-    %% Step 5: Dual Execution Paths (Decision Gate)
-    InvariantEngine -->|"6a. [BLOCKED] Exploit or Margin Breach"| MerkleTree
-    InvariantEngine -->|"6b. [APPROVED] Validated Autonomous Intent"| Razorpay
+    INTENT --> AP2
 
-    %% Step 6: Payment Execution
-    Razorpay -->|"7a. 0-Click Headless Debit (Sub-350ms)"| DB
-    Razorpay -->|"7b. Razorpay Webhook Confirmation"| InvariantEngine
+    AP2 --> CART
+    CART --> GUARDIAN
+    TOKEN --> GUARDIAN
 
-    %% Step 7: Cryptographic Sealing
-    InvariantEngine -->|"8. Generate Balanced 4-Leaf Topology"| MerkleTree
-    MerkleTree -->|"9. Commit Ed25519 Signed Audit Receipt"| ReceiptStore
+    GUARDIAN --> RULES
+    RULES --> MARGIN
+    RULES --> SECURITY
+    RULES --> STATE
 
-    %% Step 8: Telemetry & Merchant Control
-    ReceiptStore -->|"10. Push Verified Event to Mempool"| LiveStream
-    LiveStream -->|"11. Real-Time Telemetry & Killswitch Status"| Dashboard
-    Dashboard -->|"12. Audit Decision or Trigger Historical Replay"| ReplayEngine
-    ReplayEngine -->|"13. Bit-for-Bit Re-Evaluation against Frozen Snapshot"| InvariantEngine
+    GUARDIAN --> DECISION
+
+    DECISION -->|APPROVED| APPROVE
+    DECISION -->|BLOCK / FAIL| BLOCK
+
+
+    %% ============================================================
+    %% APPROVED FINANCIAL EXECUTION
+    %% ============================================================
+
+    APPROVE --> RAZORPAY
+
+    RAZORPAY --> AUTOPAY
+    RAZORPAY --> HOSTED
+
+    AUTOPAY --> STATE
+    HOSTED --> STATE
+
+    RAZORPAY -->|Webhook / Confirmation| GUARDIAN
+
+
+    %% ============================================================
+    %% BLOCK + APPROVED → AUDIT
+    %% ============================================================
+
+    BLOCK --> MERKLE
+    APPROVE --> MERKLE
+
+    MERKLE --> LEAVES
+    LEAVES --> RECEIPT
+
+    RECEIPT --> REPLAY
+
+    REPLAY -->|Frozen Snapshot| GUARDIAN
+
+
+    %% ============================================================
+    %% TELEMETRY / CONTROL
+    %% ============================================================
+
+    RECEIPT --> STREAM
+    STREAM --> DASH
+
+    DASH --> KILL
+    KILL -->|Policy / Mandate Control| GUARDIAN
+
+
+    %% ============================================================
+    %% VISUAL EMPHASIS
+    %% ============================================================
+
+    classDef ingress fill:#eef6ff,stroke:#2563eb,stroke-width:1.5px,color:#111827;
+    classDef agent fill:#f5f3ff,stroke:#7c3aed,stroke-width:1.5px,color:#111827;
+    classDef crypto fill:#fff7ed,stroke:#ea580c,stroke-width:1.5px,color:#111827;
+    classDef guardian fill:#ecfdf5,stroke:#059669,stroke-width:2.5px,color:#111827;
+    classDef decision fill:#fefce8,stroke:#ca8a04,stroke-width:2px,color:#111827;
+    classDef settlement fill:#eff6ff,stroke:#0284c7,stroke-width:1.5px,color:#111827;
+    classDef audit fill:#faf5ff,stroke:#9333ea,stroke-width:1.5px,color:#111827;
+    classDef control fill:#f8fafc,stroke:#475569,stroke-width:1.5px,color:#111827;
+    classDef blocked fill:#fef2f2,stroke:#dc2626,stroke-width:2px,color:#991b1b;
+    classDef approved fill:#f0fdf4,stroke:#16a34a,stroke-width:2px,color:#166534;
+
+    class WEB,TG,MCP,UAP ingress;
+    class COMMERCE,AUCTION,INTENT agent;
+    class AP2,CART,TOKEN crypto;
+    class GUARDIAN,RULES,MARGIN,SECURITY,STATE guardian;
+    class DECISION decision;
+    class APPROVE approved;
+    class BLOCK blocked;
+    class RAZORPAY,AUTOPAY,HOSTED settlement;
+    class MERKLE,LEAVES,RECEIPT,REPLAY audit;
+    class STREAM,DASH,KILL control;
 ```
 
 ---
