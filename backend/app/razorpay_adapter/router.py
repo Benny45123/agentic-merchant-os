@@ -1164,7 +1164,7 @@ class AutoPaySetupRequest(BaseModel):
     max_amount_per_charge_paise: Optional[int] = None
     bank_name: Optional[str] = "HDFC Bank (UPI AutoPay)"
     vpa: Optional[str] = None
-    simulate_auth: bool = True
+    simulate_auth: bool = False
 
 
 
