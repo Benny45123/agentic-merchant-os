@@ -35,14 +35,135 @@
 
 ---
 
+<h2 id="live-demo">🌐 30-Second Quick Live Evaluation &amp; Interactive Demo</h2>
+
+> **Live Production URL:** [`https://32-236-161-117.sslip.io`](https://32-236-161-117.sslip.io)  
+> **Global Deployment Status:** 🟢 **ALL SERVICES ONLINE (AWS EC2 • Native Low-Footprint PM2 • Let's Encrypt TLS)**  
+> **No installation or local setup required!** You can immediately test and evaluate the entire autonomous commerce platform live using your browser, your smartphone (Telegram), Claude Desktop (MCP), Cursor IDE, or custom Python agents.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                           LIVE EVALUATION MATRIX (Zero-Setup Ingress)                            │
+├──────────────────────────┬──────────────────────────┬──────────────────────┬─────────────────────┤
+│ 💻 WEB BROWSER STORE     │ 📱 TELEGRAM SMARTPHONE   │ 🤖 CLAUDE / CURSOR   │ 🇮🇳 PROTOCOL (UAP)   │
+│ Zero Install Required    │ Real-Time Mobile Bot     │ Desktop Agent (MCP)  │ Machine-to-Machine  │
+│ 1-Click Razorpay Modal   │ Omnichannel Gateway      │ 10 Tools Integrated  │ JSON-RPC & REST API │
+│ [Open Web Store ➔]       │ [Open Telegram ➔]        │ [1-Command Setup ➔]  │ [View OpenAPI ➔]    │
+└──────────────────────────┴──────────────────────────┴──────────────────────┴─────────────────────┘
+```
+
+### 1. 💻 0-Setup Instant Web Experience (Browser)
+Jump directly into the live production interfaces in your web browser:
+* 🛍️ **[Live AI Store &amp; Buyer Assistant](https://32-236-161-117.sslip.io/chat)**: Conversational shopping assistant with voice mic support, real-time Guardian evaluation cards, dynamic bundle upsells, and 1-click Razorpay test modal checkout.
+* 🤝 **[A2A Reverse Auction Negotiation Arena](https://32-236-161-117.sslip.io/negotiate)**: Interactive machine-to-machine bargaining table with live margin gauge (floor $\ge 15\%$), volume target pricing, and automated profit-lift sweetener counter-offers.
+* 📊 **[Merchant Control Plane &amp; Telemetry](https://32-236-161-117.sslip.io/dashboard)**: Live financial command center featuring the **Live Agentic Transaction Stream** (auto-refreshing every 10s), DPDP/GDPR-masked buyer telemetry, and mandate headroom killswitches.
+* 🔐 **[Decision Receipts &amp; Cryptographic Replay](https://32-236-161-117.sslip.io/receipts)**: Full immutable audit vault with interactive Quad-Leaf Merkle Tree visualizer and 1-click bit-for-bit historical replay verification.
+
+---
+
+### 2. 📱 0-Setup Smartphone Mobile Gateway (Telegram)
+Interact with the autonomous store directly on your phone:
+* **Official Telegram Bot**: [`@agentic_merchant_store_bot`](https://t.me/agentic_merchant_store_bot)
+* **Step 1**: Open Telegram, search for `@agentic_merchant_store_bot`, and tap **`Start`** (or send `/start`).
+* **Step 2**: Browse the interactive product catalog or type natural language queries (`"Buy iPhone 15"` or `"Bargain Samsung S24"`).
+* **Step 3 (Opt-In AutoPay)**: Send `/autopay` to inspect your recurring mandate. Tapping `[⚡ Setup AutoPay Mandate]` registers an e-mandate on Razorpay; once authorized, future purchases execute 0-click in &lt;400ms!
+
+---
+
+### 3. 🤖 60-Second AI Agent Ingress (Claude Desktop / Cursor / Windsurf / LangChain)
+Connect any external autonomous agent to your live store using Anthropic's **Model Context Protocol (MCP)**:
+
+#### ⚡ Option A: 1-Command Automated Installer (macOS, Linux, Windows)
+```bash
+curl -sSL https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/scripts/setup_claude_mcp.sh | bash -s -- https://32-236-161-117.sslip.io
+```
+*(Automatically locates your `claude_desktop_config.json`, wires up the 10 merchant tools pointing to the live server, and tests the connection!)*
+
+#### 🛠️ Option B: Manual Configuration (Claude Desktop)
+Add this to your `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "agentic-merchant-os": {
+      "command": "python3",
+      "args": ["-c", "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py').read().decode('utf-8'))"],
+      "env": {
+        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+      }
+    }
+  }
+}
+```
+* **Test it**: Restart Claude Desktop, see the hammer icon (⚒️), and prompt:  
+  `"Search for headphones in the store and purchase 1 unit within a budget of ₹5,000"`
+
+#### 💻 Option C: Cursor &amp; Windsurf IDE
+Go to **Settings ➔ Features ➔ MCP ➔ + Add New MCP Server**:
+* **Name**: `agentic-merchant-os`
+* **Command**: `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py').read().decode('utf-8'))"`
+* **Environment Variable**: `MERCHANT_API_BASE=https://32-236-161-117.sslip.io`
+* **Prompt Cursor**: `"@agentic-merchant-os what is our current wholesale inventory for laptops?"`
+
+#### 🦜 Option D: Enterprise LangChain / LangGraph Python Swarms
+```python
+from langchain_mcp import MultiServerMCPClient
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import create_react_agent
+
+# 1. Connect to our Live AWS Store
+client = MultiServerMCPClient()
+await client.connect_to_server(
+    "agentic-merchant-os",
+    command="python3",
+    args=["backend/app/api/mcp_server.py"],
+    env={"MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"}
+)
+
+# 2. Bind tools to any model (GPT-4o, Claude 3.5, Gemini)
+agent = create_react_agent(ChatOpenAI(model="gpt-4o"), client.get_tools())
+
+# 3. Agent negotiates wholesale inventory live on our server!
+res = await agent.ainvoke({"messages": [("user", "Negotiate lowest price for 3x AeroSound Headphones")]})
+print(res["messages"][-1].content)
+```
+
+#### 🧠 Option E: Local Models (Hermes 3, DeepSeek-R1, Ollama via Continue.dev)
+Add to `.continue/config.json`:
+```json
+{
+  "mcpServers": [
+    {
+      "name": "agentic-merchant-os",
+      "command": "python3",
+      "args": ["backend/app/api/mcp_server.py"],
+      "env": {
+        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+      }
+    }
+  ]
+}
+```
+
+---
+
+### 4. 🇮🇳 Machine-to-Machine Autonomous Protocol (NPCI UAP-1.0 / REST)
+Any autonomous machine or external ERP connects directly via standard JSON-RPC / REST:
+* **Agent Manifest**: [`GET https://32-236-161-117.sslip.io/.well-known/agent.json`](https://32-236-161-117.sslip.io/.well-known/agent.json)
+* **Live Interactive Swagger Docs**: [`https://32-236-161-117.sslip.io/docs`](https://32-236-161-117.sslip.io/docs)
+* **Submit Machine Purchase Intent**: `POST https://32-236-161-117.sslip.io/agent/v1/machine-purchase`
+* **Submit Reverse Auction Bid**: `POST https://32-236-161-117.sslip.io/commerce/rfq`
+* **Settle Deal**: `POST https://32-236-161-117.sslip.io/commerce/accept`
+
+---
+
 <h2 id="quick-navigation">🧭 Interactive Quick Navigation</h2>
 
-| 🏛️ Core Architecture | 🌐 Ingress & Omnichannel | 🧪 Rigor & Deployment |
+| 🏛️ Core Architecture | 🌐 Ingress &amp; Omnichannel | 🧪 Rigor &amp; Deployment |
 | :--- | :--- | :--- |
-| [🚀 The Six Pillars](#the-six-pillars) | [📱 Omnichannel Telegram Gateway](#telegram-gateway) | [🎬 11 Automated E2E Scenarios](#e2e-scenarios) |
-| [🎯 Track 01 Hackathon Scorecard](#track-01-scorecard) | [🔌 Universal MCP Gateway (10 Tools)](#universal-mcp-gateway) | [🚀 Production Cloud Architecture](#production-deployment) |
-| [🌟 Zero-LLM Architecture Rule](#zero-llm-rule) | [🤖 Headless AI Buyer CLI](#headless-ai-buyer) | [🔥 12 Production War Stories](#war-stories) |
-| [⚡ Quick Start Commands](#quick-start) | [🌐 Live Web Portals](#live-portals) | [🏗️ Architecture & Component Map](#architecture-map) |
+| [🚀 The Six Pillars](#the-six-pillars) | [🌐 30-Sec Live Evaluation Matrix](#live-demo) | [🎬 11 Automated E2E Scenarios](#e2e-scenarios) |
+| [🎯 Track 01 Hackathon Scorecard](#track-01-scorecard) | [📱 Omnichannel Telegram Gateway](#telegram-gateway) | [🚀 Production Cloud Architecture](#production-deployment) |
+| [🌟 Zero-LLM Architecture Rule](#zero-llm-rule) | [🔌 Universal MCP Gateway (10 Tools)](#universal-mcp-gateway) | [🔥 12 Production War Stories](#war-stories) |
+| [⚡ Quick Start Commands](#quick-start) | [🤖 Headless AI Buyer CLI](#headless-ai-buyer) | [🏗️ Architecture &amp; Component Map](#architecture-map) |
 
 ---
 
