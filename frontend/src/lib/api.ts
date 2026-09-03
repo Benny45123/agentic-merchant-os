@@ -88,6 +88,7 @@ export interface GuardianDecision {
   primary_reason: string;
   final_verified_total?: number;
   receipt_id: string;
+  razorpay_order_id?: string;
 }
 
 export interface CheckoutResponse {
