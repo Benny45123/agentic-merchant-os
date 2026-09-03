@@ -301,6 +301,98 @@ async def sync_payment_status(
     }
 
 
+async def _resolve_or_synthesize_order(
+    order_id: str,
+    session: AsyncSession,
+    adapter: Optional[RazorpayAdapter] = None,
+) -> Optional[Order]:
+    """
+    Robustly resolves an Order by:
+    1. Direct match on Order.order_id or Order.decision_id
+    2. Matching against Receipt (receipt_id, intent_id, decision_id, or razorpay_order_id)
+    3. Synthesizing an Order row if a verified Receipt exists without a persisted Order.
+    """
+    stmt = select(Order).where((Order.order_id == order_id) | (Order.decision_id == order_id))
+    result = await session.execute(stmt)
+    order = result.scalar_one_or_none()
+    if order:
+        return order
+
+    from app.models.receipt import Receipt
+    rcpt_stmt = select(Receipt).where(
+        (Receipt.receipt_id == order_id) |
+        (Receipt.intent_id == order_id) |
+        (Receipt.decision_id == order_id) |
+        (Receipt.razorpay_order_id == order_id)
+    )
+    rcpt_res = await session.execute(rcpt_stmt)
+    rcpt = rcpt_res.scalar_one_or_none()
+
+    if rcpt:
+        # Strict Guardian Invariant: If this intent was BLOCKED by Commerce Guardian,
+        # zero financial leakage policy strictly forbids payment link synthesis!
+        if rcpt.failure_reason:
+            return None
+
+        if rcpt.razorpay_order_id:
+            stmt = select(Order).where(Order.order_id == rcpt.razorpay_order_id)
+            result = await session.execute(stmt)
+            order = result.scalar_one_or_none()
+            if order:
+                return order
+
+        if rcpt.decision_id:
+            stmt = select(Order).where(Order.decision_id == rcpt.decision_id)
+            result = await session.execute(stmt)
+            order = result.scalar_one_or_none()
+            if order:
+                return order
+
+        # Synthesize order for this verified receipt
+        from app.models.buyer import Buyer
+        buyer_id = rcpt.buyer_id or "b_001"
+        b_stmt = select(Buyer).where(Buyer.buyer_id == buyer_id)
+        b_res = await session.execute(b_stmt)
+        if not b_res.scalar_one_or_none():
+            session.add(Buyer(buyer_id=buyer_id, name=f"Shopper {buyer_id}"))
+            await session.flush()
+
+        actual_amount = rcpt.final_verified_total or rcpt.observed_total or 100
+        synthesized_order_id = rcpt.razorpay_order_id
+
+        # If live Razorpay SDK is configured, attempt to create official Razorpay order
+        if not synthesized_order_id and adapter and adapter._is_live_sdk_available and adapter.client:
+            try:
+                rzp_resp = adapter.client.order.create({
+                    "amount": actual_amount,
+                    "currency": "INR",
+                    "receipt": rcpt.receipt_id[:40],
+                    "payment_capture": 1,
+                })
+                synthesized_order_id = rzp_resp["id"]
+            except Exception as e:
+                logger.warning(f"Could not create live Razorpay order: {e}")
+                synthesized_order_id = f"order_{rcpt.receipt_id.replace('-', '')[:16]}"
+        elif not synthesized_order_id:
+            synthesized_order_id = f"order_{rcpt.receipt_id.replace('-', '')[:16]}"
+
+        order = Order(
+            order_id=synthesized_order_id,
+            decision_id=rcpt.decision_id,
+            merchant_id=rcpt.merchant_id,
+            buyer_id=buyer_id,
+            amount=actual_amount,
+            currency="INR",
+            status=OrderStatus.PAID if rcpt.razorpay_payment_id else OrderStatus.CREATED,
+        )
+        session.add(order)
+        rcpt.razorpay_order_id = synthesized_order_id
+        await session.commit()
+        return order
+
+    return None
+
+
 @router.get("/payments/checkout/{order_id}", response_class=Response)
 @router.get("/checkout/{order_id}", response_class=Response)
 async def render_checkout_page(
@@ -308,27 +400,58 @@ async def render_checkout_page(
     session: AsyncSession = Depends(get_session),
     adapter: RazorpayAdapter = Depends(get_razorpay_adapter),
 ):
-
-
     """
     Renders an interactive mobile & desktop Razorpay checkout simulation page.
     Allows testing UPI, Card, and NetBanking payments with 1 click.
     """
-    stmt = select(Order).where(Order.order_id == order_id)
-    result = await session.execute(stmt)
-    order = result.scalar_one_or_none()
+    import re
+    order = await _resolve_or_synthesize_order(order_id, session, adapter)
 
     if not order:
         from app.models.receipt import Receipt
-        rcpt_stmt = select(Receipt).where(Receipt.receipt_id == order_id)
+        import html
+        rcpt_stmt = select(Receipt).where(
+            (Receipt.receipt_id == order_id) |
+            (Receipt.intent_id == order_id) |
+            (Receipt.decision_id == order_id)
+        )
         rcpt_res = await session.execute(rcpt_stmt)
-        rcpt = rcpt_res.scalar_one_or_none()
-        if rcpt and rcpt.razorpay_order_id:
-            stmt = select(Order).where(Order.order_id == rcpt.razorpay_order_id)
-            result = await session.execute(stmt)
-            order = result.scalar_one_or_none()
+        blocked_rcpt = rcpt_res.scalar_one_or_none()
 
-    if not order:
+        if blocked_rcpt and blocked_rcpt.failure_reason:
+            reason_safe = html.escape(blocked_rcpt.failure_reason)
+            return Response(
+                content=f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction Blocked • Commerce Guardian</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 text-white min-h-screen flex items-center justify-center p-4 font-sans">
+    <div class="max-w-md w-full bg-slate-900 border border-rose-500/40 rounded-3xl p-8 shadow-2xl space-y-6 text-center">
+        <div class="w-16 h-16 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30 flex items-center justify-center text-3xl font-black mx-auto">
+            🚫
+        </div>
+        <h2 class="text-xl font-black text-rose-300">Transaction Blocked by Guardian</h2>
+        <p class="text-xs text-rose-400/90 font-mono bg-rose-950/40 p-3 rounded-xl border border-rose-500/20">
+            {reason_safe}
+        </p>
+        <p class="text-xs text-slate-400 leading-relaxed">
+            In accordance with the <b>Deterministic Commerce Guardian</b> safety policy, zero financial leakage is strictly enforced. Razorpay checkout is disabled for blocked intents.
+        </p>
+        <div class="pt-2">
+            <a href="/receipts/{blocked_rcpt.receipt_id}" class="inline-block px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all">
+                🔍 Inspect Merkle Proof &amp; Replay
+            </a>
+        </div>
+    </div>
+</body>
+</html>""",
+                media_type="text/html",
+                status_code=403,
+            )
+
         return Response(
             content=f"<html><body style='font-family:sans-serif;padding:40px;text-align:center;'><h2>❌ Order Not Found</h2><p>Reference ID: {order_id}</p></body></html>",
             media_type="text/html",
@@ -338,16 +461,20 @@ async def render_checkout_page(
     amount_inr = (order.amount or 0) / 100.0
     is_paid = order.status == OrderStatus.PAID
 
+    # Razorpay standard checkout preferences endpoint ONLY accepts order IDs created on api.razorpay.com
+    # (strictly format: 'order_' followed by exactly 14 alphanumeric chars).
+    # If locally synthesized, omit order_id so Razorpay launches in standard direct mode without 400 Bad Request!
+    is_live_rzp_order = bool(order.order_id and re.match(r"^order_[A-Za-z0-9]{14}$", order.order_id))
+    rzp_order_field = f'order_id: "{order.order_id}",' if is_live_rzp_order else ""
 
     paid_banner = f"""
         <div class="bg-emerald-950/60 border border-emerald-500/30 rounded-2xl p-6 text-center space-y-4">
-
             <div class="w-14 h-14 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center text-3xl font-black mx-auto">
                 ✓
             </div>
             <h2 class="text-xl font-black text-emerald-300">Payment Captured &amp; Verified!</h2>
             <p class="text-sm text-emerald-400/80">Order <code class="font-mono">{order_id}</code> is settled on the immutable ledger.</p>
-            <p class="text-xs text-slate-400">You can now return to Telegram and tap <b>Verify &amp; Confirm Payment</b> to view your Decision Receipt.</p>
+            <p class="text-xs text-slate-400">You can now return to Claude or Telegram to inspect your Decision Receipt.</p>
         </div>
     """
 
@@ -375,10 +502,16 @@ async def render_checkout_page(
                 <p class="text-[11px] text-blue-300/80">Pay seamlessly using UPI (GPay, PhonePe, Paytm), Cards, or NetBanking.</p>
             </div>
 
-            <button id="rzp-btn" onclick="openRazorpayCheckout()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-blue-600/30 transition-all flex items-center justify-center gap-2 active:scale-98">
-                <span>💳 Pay ₹{amount_inr:,.2f} with Razorpay</span>
-                <span>→</span>
-            </button>
+            <div class="space-y-2.5">
+                <button id="rzp-btn" onclick="openRazorpayCheckout()" class="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-sm shadow-xl shadow-blue-600/30 transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer">
+                    <span>💳 Pay ₹{amount_inr:,.2f} with Razorpay Modal</span>
+                    <span>→</span>
+                </button>
+
+                <button id="fallback-btn" onclick="executeFallbackPayment()" class="w-full py-3 rounded-2xl bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition-all flex items-center justify-center gap-2 active:scale-98 cursor-pointer">
+                    <span>⚡ 1-Click Instant Settle (Sandbox Simulation)</span>
+                </button>
+            </div>
         </div>
     """
 
@@ -439,12 +572,12 @@ async def render_checkout_page(
                 amount: {order.amount},
                 currency: "{order.currency}",
                 name: "Agentic Merchant Store",
-                description: "Order {order_id}",
-                order_id: "{order_id}",
+                description: "Order {order.order_id}",
+                {rzp_order_field}
                 handler: async function (response) {{
                     try {{
                         const verifyPayload = {{
-                            razorpay_order_id: response.razorpay_order_id || "{order_id}",
+                            razorpay_order_id: response.razorpay_order_id || "{order.order_id}",
                             razorpay_payment_id: response.razorpay_payment_id,
                             razorpay_signature: response.razorpay_signature || "test_signature"
                         }};
@@ -457,11 +590,11 @@ async def render_checkout_page(
                             window.location.reload();
                         }} else {{
                             // Fallback to direct checkout pay
-                            await fetch("/checkout/{order_id}/pay", {{ method: "POST" }});
+                            await fetch("/checkout/{order.order_id}/pay", {{ method: "POST" }});
                             window.location.reload();
                         }}
                     }} catch (err) {{
-                        await fetch("/checkout/{order_id}/pay", {{ method: "POST" }});
+                        await fetch("/checkout/{order.order_id}/pay", {{ method: "POST" }});
                         window.location.reload();
                     }}
                 }},
@@ -483,7 +616,12 @@ async def render_checkout_page(
 
             const rzp = new Razorpay(options);
             rzp.on("payment.failed", function (response) {{
-                alert("Payment Failed: " + response.error.description);
+                console.warn("Razorpay modal issue:", response);
+                const desc = (response && response.error && response.error.description) ? response.error.description : "Payment could not be processed by Razorpay modal";
+                const fallbackConfirmed = confirm(desc + "\\n\\nWould you like to instantly complete payment via the Sandbox Simulator?");
+                if (fallbackConfirmed) {{
+                    executeFallbackPayment();
+                }}
             }});
             rzp.open();
         }}
@@ -505,7 +643,7 @@ async def render_checkout_page(
                 btn.innerHTML = "Processing Payment...";
             }}
             try {{
-                const res = await fetch("/checkout/{order_id}/pay", {{ method: "POST" }});
+                const res = await fetch("/checkout/{order.order_id}/pay", {{ method: "POST" }});
                 if (res.ok) {{
                     window.location.reload();
                 }}
@@ -883,19 +1021,7 @@ async def process_checkout_payment(
     adapter: RazorpayAdapter = Depends(get_razorpay_adapter),
 ):
     """Processes simulated test payment from the checkout page and records it immediately."""
-    stmt = select(Order).where(Order.order_id == order_id)
-    result = await session.execute(stmt)
-    order = result.scalar_one_or_none()
-
-    if not order:
-        from app.models.receipt import Receipt
-        rcpt_stmt = select(Receipt).where(Receipt.receipt_id == order_id)
-        rcpt_res = await session.execute(rcpt_stmt)
-        rcpt = rcpt_res.scalar_one_or_none()
-        if rcpt and rcpt.razorpay_order_id:
-            stmt = select(Order).where(Order.order_id == rcpt.razorpay_order_id)
-            result = await session.execute(stmt)
-            order = result.scalar_one_or_none()
+    order = await _resolve_or_synthesize_order(order_id, session)
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
@@ -1056,6 +1182,15 @@ async def setup_autopay_mandate(
     # Enforce minimum ₹30,000 (3,000,000 paise) for e-mandate setup
     mandate_amount = max(3000000, body.max_amount_paise)
     per_charge_cap = body.max_amount_per_charge_paise or mandate_amount
+
+    from app.models.buyer import Buyer
+    buyer_stmt = select(Buyer).where(Buyer.buyer_id == body.buyer_id)
+    buyer_res = await session.execute(buyer_stmt)
+    buyer = buyer_res.scalar_one_or_none()
+    if not buyer:
+        buyer = Buyer(buyer_id=body.buyer_id, name=f"Shopper {body.buyer_id}")
+        session.add(buyer)
+        await session.flush()
 
     stmt = select(Mandate).where(Mandate.buyer_id == body.buyer_id, Mandate.active == True)
     res = await session.execute(stmt)

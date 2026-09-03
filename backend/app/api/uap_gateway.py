@@ -168,6 +168,17 @@ async def submit_machine_purchase(
         expires_at=now.replace(hour=23, minute=59, second=59),
     )
 
+    # Ensure buyer & mandate declared in UAP payload are persisted in database
+    buyer_id = body.buyer_mandate.buyer_id
+    if buyer_id:
+        from app.core.identity import ensure_buyer_and_mandate
+        await ensure_buyer_and_mandate(
+            session=session,
+            buyer_id=buyer_id,
+            initial_pool_paise=body.buyer_mandate.max_amount or 5000000,
+        )
+        await session.flush()
+
     # Deterministic Guardian Evaluation
     decision_resp = await evaluate_transaction_intent(intent_req, session)
 

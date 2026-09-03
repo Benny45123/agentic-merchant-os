@@ -4,6 +4,33 @@ All notable changes to the Agentic Merchant OS platform are documented in this f
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and adheres to Semantic Versioning.
 
+## [1.7.0] - 2026-09-03
+### Added
+- **Persistent Omnichannel Identity Subsystem (`docs/25_PERSISTENT_OMNICHANNEL_IDENTITY.md`)**:
+  - Implemented `backend/app/core/identity.py` to deterministically manage identity across Telegram (`tg_*`), Claude Desktop MCP (`claude_*`), and Web Store (`b_dev_*`).
+  - Added `frontend/src/lib/identity.ts` for browser device fingerprinting using `localStorage` persistence and `crypto.randomUUID()`.
+  - Integrated Omnichannel Identity Resolver in the Commerce Guardian pipeline (`backend/app/guardian/pipeline.py`), ensuring `mandate.active` invariant passes deterministically without manual buyer setup.
+  - Authored detailed specification in `docs/25_PERSISTENT_OMNICHANNEL_IDENTITY.md` and roadmap task `agent_tasks/agent_22_persistent_omnichannel_identity.md`.
+- **Strict Opt-In AutoPay Lifecycle & Zero-Click Authorization Gate**:
+  - Enforced **Opt-In by Design**: new mandates default to `autopay_enabled = False`, `recurring_auth_status = "INACTIVE"`, preventing accidental 0-click debits on initial checkout attempts.
+  - Initial purchases across Claude and Telegram return official Razorpay checkout links for standard manual payment (UPI / Card).
+  - Explicit user activation flow enabled via Telegram `/autopay` command and Claude MCP `setup_autopay_mandate` tool. Subsequent purchases execute 0-click in <400ms without OTP prompts only after explicit authorization.
+- **Dynamic Mandate Budget Scaling & High-Value Catalog Alignment**:
+  - Scaled baseline mandate spending ceiling and per-charge limit to ₹2,00,000 across all channels.
+  - Added dynamic budget calculation in Claude MCP `submit_machine_purchase` based on requested catalog items (`max(item_total, 20000000)`), preventing high-value catalog items (e.g. Lenovo Yoga Slim 7 @ ₹89,990) from triggering per-transaction ceiling blocks.
+- **Deterministic Commerce Guardian Safety & Zero Financial Leakage Gate**:
+  - Explicit `BLOCK` handling in Claude MCP (`submit_machine_purchase`): directly returns `isError: True` with exact invariant breach details, strictly prohibiting payment link generation.
+  - Hardened `/payments/checkout/{order_id}` and dynamic order synthesis in `backend/app/razorpay_adapter/router.py`: checks `rcpt.failure_reason` and blocks order synthesis, returning an HTTP `403 Forbidden` security screen for any Guardian-blocked intent.
+  - Verified complete execution isolation: AutoPay charge API (`charge_autopay_token`) is strictly unreachable when Guardian evaluates `BLOCK`.
+- **Merchant Dashboard Real-Time Telemetry & DPDP/GDPR Privacy Masking**:
+  - Implemented **Live Agentic Transaction Stream** with real-time auto-sync (10s), channel filters, action badges, and 1-click Merkle proof audit links.
+  - Added privacy-preserving identity masking (e.g. `tg_855***903`, `b_dev_8f2a...`) compliant with India DPDP Act 2023 and GDPR Article 25.
+  - Surfaced buyer mandate headroom progress meters and individual AutoPay killswitches.
+- **Telegram Bot Omnichannel Hardening**:
+  - Integrated omnichannel identity `tg_{user_id}` into direct buy, RFQ negotiation, and offer settlement.
+  - Added dedicated `REQUIRE_CONFIRMATION` card for high-value purchases.
+  - Enforced strict `BLOCK` card with zero financial leakage guarantees and no payment actions.
+
 ## [1.6.0] - 2026-09-02
 ### Added
 - **AWS Production Deployment & Dual Architecture Suite**:

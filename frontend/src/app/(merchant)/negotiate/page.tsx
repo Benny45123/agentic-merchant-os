@@ -9,6 +9,7 @@ import {
   CounterOfferOption,
   NegotiationSettlementData,
 } from "@/lib/api";
+import { getOrCreateShopperIdentity } from "@/lib/identity";
 import {
   Shield,
   Zap,
@@ -137,10 +138,12 @@ export default function NegotiationArenaPage() {
     setErrorMsg(null);
     setSettlementData(null);
     try {
+      const identity = getOrCreateShopperIdentity();
       const res = await submitRFQ({
         sku,
         qty,
         target_unit_price_paise: targetPriceInr * 100,
+        buyer_agent_id: identity.buyerId,
       });
       setRfqResponse(res);
     } catch (err: any) {
@@ -155,11 +158,12 @@ export default function NegotiationArenaPage() {
     setSettlingOptionId(optionId);
     setErrorMsg(null);
     try {
+      const identity = getOrCreateShopperIdentity();
       const settlement = await acceptNegotiatedOffer({
         session_id: rfqResponse.session_id,
         selected_option_id: optionId,
         option_id: optionId,
-        buyer_id: "b_001",
+        buyer_id: identity.buyerId,
         merchant_id: "m_001",
       });
 

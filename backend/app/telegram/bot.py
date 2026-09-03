@@ -78,6 +78,10 @@ class TelegramBotService:
             cb = update["callback_query"]
             cb_id = cb["id"]
             chat_id = cb["message"]["chat"]["id"]
+            from_user = cb.get("from", {})
+            from_id = from_user.get("id")
+            user_name = from_user.get("first_name", "Shopper")
+            tg_buyer_id = f"tg_{from_id}" if from_id else "b_001"
             data = cb.get("data", "")
             await self.answer_callback_query(cb_id, "Processing request...")
 
@@ -90,21 +94,21 @@ class TelegramBotService:
                 parts = data.split(":")
                 sku = parts[1]
                 qty = int(parts[2]) if len(parts) > 2 else 1
-                res = await self.handlers.handle_rfq_bargain(sku, qty)
+                res = await self.handlers.handle_rfq_bargain(sku, qty, buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             elif data.startswith("buy:"):
                 parts = data.split(":")
                 sku = parts[1]
                 qty = int(parts[2]) if len(parts) > 2 else 1
-                res = await self.handlers.handle_direct_buy(sku, qty)
+                res = await self.handlers.handle_direct_buy(sku, qty, buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             elif data.startswith("accept:"):
                 parts = data.split(":")
                 session_id = parts[1]
                 option_id = parts[2]
-                res = await self.handlers.handle_accept_offer(session_id, option_id)
+                res = await self.handlers.handle_accept_offer(session_id, option_id, buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             elif data.startswith("openrzp:"):
@@ -152,21 +156,21 @@ class TelegramBotService:
             elif data.startswith("autopay:setup:"):
 
                 amount_inr = int(data.split(":", 2)[2])
-                res = await self.handlers.handle_autopay_setup_amount(amount_inr)
+                res = await self.handlers.handle_autopay_setup_amount(amount_inr, buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             elif data.startswith("autopay:toggle:"):
                 toggle_action = data.split(":", 2)[2]
                 enable = toggle_action == "on"
-                res = await self.handlers.handle_autopay_toggle(enable)
+                res = await self.handlers.handle_autopay_toggle(enable, buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             elif data == "cmd:autopay":
-                res = await self.handlers.handle_autopay_status()
+                res = await self.handlers.handle_autopay_status(buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             elif data == "autopay:verify":
-                res = await self.handlers.handle_autopay_verify()
+                res = await self.handlers.handle_autopay_verify(buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
 
@@ -186,7 +190,10 @@ class TelegramBotService:
         if "message" in update:
             msg = update["message"]
             chat_id = msg["chat"]["id"]
-            user_name = msg.get("from", {}).get("first_name", "Shopper")
+            from_user = msg.get("from", {})
+            from_id = from_user.get("id")
+            user_name = from_user.get("first_name", "Shopper")
+            tg_buyer_id = f"tg_{from_id}" if from_id else "b_001"
             text = msg.get("text", "").strip()
 
             if not text:
@@ -203,13 +210,13 @@ class TelegramBotService:
             elif text.startswith("/autopay"):
                 lower = text.lower()
                 if any(w in lower for w in ["on", "enable", "setup", "activate", "start"]):
-                    res = await self.handlers.handle_autopay_toggle(True)
+                    res = await self.handlers.handle_autopay_toggle(True, buyer_id=tg_buyer_id)
                 elif any(w in lower for w in ["off", "disable", "pause", "revoke", "stop"]):
-                    res = await self.handlers.handle_autopay_toggle(False)
+                    res = await self.handlers.handle_autopay_toggle(False, buyer_id=tg_buyer_id)
                 elif any(w in lower for w in ["verify", "check", "status"]):
-                    res = await self.handlers.handle_autopay_verify()
+                    res = await self.handlers.handle_autopay_verify(buyer_id=tg_buyer_id)
                 else:
-                    res = await self.handlers.handle_autopay_status()
+                    res = await self.handlers.handle_autopay_status(buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
 
