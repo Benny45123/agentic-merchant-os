@@ -17,7 +17,7 @@
 [![NPCI UAP](https://img.shields.io/badge/NPCI-UAP--1.0-orange?style=flat-square)](https://www.npci.org.in/)
 [![Anthropic MCP](https://img.shields.io/badge/Anthropic%20MCP-JSON--RPC%202.0-D97706?style=flat-square)](https://modelcontextprotocol.io)
 [![Telegram](https://img.shields.io/badge/Telegram-@agentic__merchant__store__bot-26A5E4?style=flat-square&logo=telegram&logoColor=white)](https://t.me/agentic_merchant_store_bot)
-[![Tests](https://img.shields.io/badge/Pytest-57%2F57%20Passing-brightgreen?style=flat-square&logo=pytest&logoColor=white)](backend/tests)
+[![Tests](https://img.shields.io/badge/Pytest-71%2F71%20Passing-brightgreen?style=flat-square&logo=pytest&logoColor=white)](backend/tests)
 [![Scenarios](https://img.shields.io/badge/E2E%20Scenarios-11%2F11%20Green-brightgreen?style=flat-square)](bin/run_scenarios)
 [![Interactive Docs](https://img.shields.io/badge/Interactive_Docs-Live_App-33D8A0?style=flat-square&logo=google-chrome&logoColor=white)](http://localhost:3000/docs.html)
 
@@ -30,7 +30,7 @@
 > **A Cryptographically Bounded Financial Operating System for AI-Native Commerce.**  
 > Built for the **Razorpay AI Buildathon 2026 — Track 01: AI Growth & Agentic Commerce**.
 
-| 🧪 57/57 Pytests Passing | 🎬 11/11 E2E Scenarios Green | 🛡️ 22 Invariant Guardrails | ⚡ &lt;50ms Decision Latency |
+| 🧪 71/71 Pytests Passing | 🎬 11/11 E2E Scenarios Green | 🛡️ 22 Invariant Guardrails | ⚡ &lt;50ms Decision Latency |
 | :---: | :---: | :---: | :---: |
 
 ---
@@ -308,7 +308,7 @@ Universal scripts are provided in `bin/` for 1-command execution across **macOS,
 | **3. Stream Live Logs**Streams live combined backend/frontend logs in real time (`./bin/logs backend`, `./bin/logs frontend`).                                           | `./bin/logs`              | —*(Opens live windows)* |
 | **4. Run Autonomous AI Buyer (A2A)**Runs headless AI Buyer CLI Simulator negotiating wholesale quotes over UAP-1.0 and settling autonomously with zero human UI.             | `./bin/simulate_ai_buyer` | `bin\simulate_ai_buyer`  |
 | **5. Stop All Running Servers**Stops all running background servers and frees ports `:8000` & `:3000`.                                                                   | `./bin/stop`              | `bin\stop`               |
-| **6. Run Test Suite & Architecture Lint**Runs all **57 Pytests** (100% passing) + **Architecture Import Graph Linter**.                                          | `./bin/test`              | `bin\test`               |
+| **6. Run Test Suite & Architecture Lint**Runs all **71 Pytests** (100% passing) + **Architecture Import Graph Linter**.                                          | `./bin/test`              | `bin\test`               |
 | **7. Run All 11 E2E Demo Scenarios**Executes all **11 automated demo scenarios** against live backend with full cryptographic verification.                            | `./bin/run_scenarios`     | `bin\run_scenarios`      |
 | **8. Launch Mobile Telegram Bot**Starts the live Telegram gateway connecting mobile messaging to the Commerce Guardian.                                                      | `./bin/telegram_bot`      | `bin\telegram_bot`       |
 
@@ -640,7 +640,7 @@ While our repository provides complete, tested **Docker Compose** containers for
 | [`docker-compose.yml`](docker-compose.yml) | 1-command fleet orchestration for FastAPI, Next.js, Telegram Bot, and SQLite WAL volumes. |
 | [`Caddyfile`](Caddyfile) | Production reverse proxy with automated Let's Encrypt SSL and smart header-based route dispatch. |
 | [`scripts/aws_setup.sh`](scripts/aws_setup.sh) | Automated host bootstrapper configuring UFW firewall (ports 22, 80, 443, 3000, 8000) and dependencies. |
-| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Automated CI testing 57 Pytests, import-graph linter, Next.js compilation, and Docker syntax. |
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Automated CI testing 71 Pytests, import-graph linter, Next.js compilation, and Docker syntax. |
 | [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) | Automated CD pipeline continuously syncing commits to AWS EC2 over encrypted SSH keys. |
 | [`docs/AWS_DEPLOYMENT_GUIDE.md`](docs/AWS_DEPLOYMENT_GUIDE.md) | Complete guide for containerized deployment via Docker Compose. |
 | [`docs/CLEAN_EC2_DEPLOYMENT_PLAN.md`](docs/CLEAN_EC2_DEPLOYMENT_PLAN.md) | Step-by-step runbook for high-efficiency PM2 bare-metal deployment. |

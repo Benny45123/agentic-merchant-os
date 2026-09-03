@@ -43,11 +43,12 @@ async def test_autopay_setup_and_revoke_endpoints(test_db_session: AsyncSession)
     """Verifies REST endpoints for AutoPay activation, status querying, and revocation."""
     await seed_data(test_db_session)
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        # 1. Setup / Activate AutoPay
+        # 1. Setup / Activate AutoPay (Simulated)
         res_setup = await ac.post("/mandates/autopay/setup", json={
             "buyer_id": DEMO_BUYER_ID,
             "max_amount_paise": 5000000,
-            "vpa": "alice@okhdfcbank"
+            "vpa": "alice@okhdfcbank",
+            "simulate_auth": True
         })
         assert res_setup.status_code == 200
         assert res_setup.json()["status"] == "ACTIVE"
