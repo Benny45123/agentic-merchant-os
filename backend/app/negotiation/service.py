@@ -301,44 +301,10 @@ async def settle_negotiated_offer(
         session.add(Buyer(buyer_id=principal_buyer_id, name=f"Shopper {principal_buyer_id}", created_at=utc_now()))
         await session.flush()
 
-    # 2. Ensure active Mandate exists with appropriate ceiling for this buyer
-    mandate_stmt = select(Mandate).where(Mandate.buyer_id == principal_buyer_id, Mandate.active == True)
-    m_res = await session.execute(mandate_stmt)
-    existing_mandate = m_res.scalar_one_or_none()
-    categories_list = ["audio", "accessories", "wearables", "mobiles", "phones", "laptops", "electronics", "hardware"]
-
-    if not existing_mandate:
-        is_autopay = mand_info.get("autopay_enabled", True)
-        mandate = Mandate(
-            mandate_id=f"mand_neg_{uuid.uuid4().hex[:8]}",
-            buyer_id=principal_buyer_id,
-            max_amount=mand_info.get("max_amount", 10000000),  # ₹1,00,000 (1 Lakh)
-            max_quantity_per_item=mand_info.get("max_quantity_per_item", 10),
-            allowed_categories=categories_list,
-            allowed_merchants=[accept_req.merchant_id],
-            currency="INR",
-            expires_at=utc_now() + timedelta(days=90),
-            confirmation_required_above=20000000,
-            signature=mand_info.get("signature", "sig_ed25519_procurement_mandate"),
-            active=True,
-            autopay_enabled=is_autopay,
-            autopay_token=f"tok_rzp_autopay_{principal_buyer_id[:8]}" if is_autopay else None,
-            customer_id=f"cust_{principal_buyer_id}",
-            max_amount_per_charge=10000000,
-            recurring_auth_status="ACTIVE" if is_autopay else "PAUSED",
-            autopay_bank_name="HDFC Bank (UPI AutoPay)",
-            autopay_vpa=f"{principal_buyer_id}@okhdfcbank",
-            created_at=utc_now(),
-        )
-        session.add(mandate)
-        await session.flush()
-    else:
-        # Upgrade existing mandate categories and ceiling while strictly preserving buyer's AutoPay state
-        existing_mandate.max_amount = max(existing_mandate.max_amount or 0, 10000000)
-        existing_mandate.max_amount_per_charge = max(getattr(existing_mandate, "max_amount_per_charge", 0) or 0, 10000000)
-        existing_mandate.allowed_categories = categories_list
-        existing_mandate.confirmation_required_above = 20000000
-        await session.flush()
+    # 2. Ensure active Mandate exists via centralized Omnichannel Identity
+    from app.core.identity import ensure_buyer_and_mandate
+    _, existing_mandate = await ensure_buyer_and_mandate(session, principal_buyer_id)
+    await session.flush()
 
 
 
