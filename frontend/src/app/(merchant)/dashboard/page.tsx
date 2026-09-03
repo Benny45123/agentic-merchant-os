@@ -91,6 +91,37 @@ export default function MerchantDashboardPage() {
     }
   }
 
+  function maskBuyerId(id: string): string {
+    if (!id) return "Shopper";
+    if (id.startsWith("tg_")) {
+      const raw = id.replace("tg_", "");
+      if (raw.length > 6) {
+        return `tg_${raw.slice(0, 3)}***${raw.slice(-3)}`;
+      }
+      return `tg_${raw.slice(0, 2)}***`;
+    }
+    if (id.startsWith("b_dev_")) {
+      return `b_dev_${id.substring(6, 11)}...`;
+    }
+    if (id.startsWith("claude_")) {
+      return `claude_${id.substring(7, 12)}...`;
+    }
+    if (id.startsWith("mcp_")) {
+      return `mcp_${id.substring(4, 9)}...`;
+    }
+    return id;
+  }
+
+  function maskVpa(vpa: string): string {
+    if (!vpa) return "N/A";
+    if (vpa.includes("@")) {
+      const [handle, domain] = vpa.split("@");
+      const maskedHandle = maskBuyerId(handle);
+      return `${maskedHandle}@${domain}`;
+    }
+    return maskBuyerId(vpa);
+  }
+
   const loadData = async (isManual = false) => {
     if (isManual) setLoading(true);
     try {
@@ -546,7 +577,7 @@ export default function MerchantDashboardPage() {
                   >
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">Shopper ({m.buyer_id})</span>
+                        <span className="font-bold text-slate-900 text-sm">Shopper ({maskBuyerId(m.buyer_id)})</span>
                         {m.buyer_id.startsWith("tg_") && (
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1">
                             <span>📱</span> Telegram
@@ -593,7 +624,7 @@ export default function MerchantDashboardPage() {
 
                     <div className="text-xs bg-slate-50/90 border border-slate-200/80 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2 font-mono">
                       <span className="text-slate-500">Linked VPA:</span>
-                      <span className="font-semibold text-slate-900">{m.vpa}</span>
+                      <span className="font-semibold text-slate-900">{maskVpa(m.vpa)}</span>
                       <span className="text-slate-400 text-[11px]">({m.bank_name})</span>
                     </div>
 
