@@ -24,7 +24,7 @@ def run_scenario(base_url: str = "http://localhost:8000") -> bool:
         print("\n[Step 1] Verify active UPI AutoPay recurring mandate")
         res_status = client.get("/mandates/autopay/status?buyer_id=b_001")
         if res_status.status_code != 200 or not res_status.json().get("autopay_enabled"):
-            client.post("/mandates/autopay/setup", json={"buyer_id": "b_001", "max_amount_paise": 10000000})
+            client.post("/mandates/autopay/setup", json={"buyer_id": "b_001", "max_amount_paise": 10000000, "simulate_auth": True})
             res_status = client.get("/mandates/autopay/status?buyer_id=b_001")
 
         if res_status.status_code != 200:
