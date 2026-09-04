@@ -67,24 +67,25 @@ async def get_revenue_analytics(
     block_res = await session.execute(block_stmt)
     blocked_attempt_count = block_res.scalar() or 0
 
-    # 4. Upsell metrics from Receipts of paid orders
+    # 4. Upsell metrics from Receipts of paid orders (1 Single Batch Query)
     upsell_orders_count = 0
     upsell_revenue = 0
 
-    for order in paid_orders:
-        r_stmt = select(Receipt).where(Receipt.decision_id == order.decision_id)
+    decision_ids = [o.decision_id for o in paid_orders if o.decision_id]
+    if decision_ids:
+        r_stmt = select(Receipt).where(Receipt.decision_id.in_(decision_ids))
         r_res = await session.execute(r_stmt)
-        receipt = r_res.scalar_one_or_none()
-        if receipt and receipt.items_snapshot:
-            has_upsell = False
-            for item in receipt.items_snapshot:
-                # Check if item was flagged as upsell or is a known accessory/warranty SKU
-                if item.get("source") == "upsell" or item.get("sku") in ["WRNTY-1Y", "CASE-HP"]:
-                    has_upsell = True
-                    item_price = item.get("authoritative_price", item.get("observed_price", 0))
-                    upsell_revenue += item_price * item.get("qty", 1)
-            if has_upsell:
-                upsell_orders_count += 1
+        for receipt in r_res.scalars().all():
+            if receipt and receipt.items_snapshot:
+                has_upsell = False
+                for item in receipt.items_snapshot:
+                    # Check if item was flagged as upsell or is a known accessory/warranty SKU
+                    if item.get("source") == "upsell" or item.get("sku") in ["WRNTY-1Y", "CASE-HP"]:
+                        has_upsell = True
+                        item_price = item.get("authoritative_price", item.get("observed_price", 0))
+                        upsell_revenue += item_price * item.get("qty", 1)
+                if has_upsell:
+                    upsell_orders_count += 1
 
     upsell_attach_rate = (upsell_orders_count / order_count) if order_count > 0 else 0.0
 

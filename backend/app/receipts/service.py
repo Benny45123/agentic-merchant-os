@@ -130,6 +130,7 @@ async def list_receipts(
     decision: Optional[str] = None,
     from_ts: Optional[datetime] = None,
     to_ts: Optional[datetime] = None,
+    limit: Optional[int] = None,
     session: AsyncSession = None,
 ) -> List[Receipt]:
     """Query audit receipts with filters."""
@@ -145,6 +146,8 @@ async def list_receipts(
         stmt = stmt.where(Receipt.created_at >= from_ts)
     if to_ts:
         stmt = stmt.where(Receipt.created_at <= to_ts)
+    if limit:
+        stmt = stmt.limit(limit)
 
     result = await session.execute(stmt)
     return list(result.scalars().all())

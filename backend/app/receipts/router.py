@@ -22,6 +22,7 @@ async def get_receipts_list(
     decision: Optional[str] = Query(None, description="Decision filter (APPROVE, BLOCK, REQUIRE_CONFIRMATION)"),
     from_date: Optional[datetime] = Query(None, alias="from", description="ISO start timestamp"),
     to_date: Optional[datetime] = Query(None, alias="to", description="ISO end timestamp"),
+    limit: Optional[int] = Query(None, description="Max receipts to return"),
     session: AsyncSession = Depends(get_session),
     current_user: Optional[CurrentUser] = Depends(get_optional_user),
 ):
@@ -32,6 +33,7 @@ async def get_receipts_list(
         decision=decision,
         from_ts=from_date,
         to_ts=to_date,
+        limit=limit,
         session=session,
     )
     return ReceiptListResponse(receipts=[ReceiptResponse.model_validate(r) for r in receipts])

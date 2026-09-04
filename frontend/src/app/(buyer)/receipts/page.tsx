@@ -42,7 +42,7 @@ export default function DecisionReceiptsExplorerPage() {
   const fetchReceipts = async () => {
     setLoading(true);
     try {
-      const res = await listReceipts(merchantId);
+      const res = await listReceipts(merchantId, 50);
       setReceipts(res.receipts || []);
     } catch (err) {
       console.error("Failed to load receipts list:", err);

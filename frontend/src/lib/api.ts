@@ -163,8 +163,11 @@ export async function getReceipt(receiptId: string): Promise<ReceiptData> {
   return fetchApi<ReceiptData>(`/receipts/${receiptId}`);
 }
 
-export async function listReceipts(merchantId: string = "m_001"): Promise<{ receipts: ReceiptData[] }> {
-  return fetchApi<{ receipts: ReceiptData[] }>(`/receipts?merchant_id=${merchantId}`);
+export async function listReceipts(merchantId: string = "m_001", limit?: number): Promise<{ receipts: ReceiptData[] }> {
+  const url = limit 
+    ? `/receipts?merchant_id=${merchantId}&limit=${limit}`
+    : `/receipts?merchant_id=${merchantId}`;
+  return fetchApi<{ receipts: ReceiptData[] }>(url);
 }
 
 export async function replayReceipt(receiptId: string) {

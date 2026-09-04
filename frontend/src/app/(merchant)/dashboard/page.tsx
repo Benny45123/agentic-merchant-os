@@ -125,14 +125,28 @@ export default function MerchantDashboardPage() {
   const loadData = async (isManual = false) => {
     if (isManual) setLoading(true);
     try {
-      const [analyticsData, receiptsData, autopayRes] = await Promise.all([
-        getRevenueAnalytics(merchantId),
-        listReceipts(merchantId),
-        listAllAutoPayMandates().catch(() => null),
-      ]);
-      setAnalytics(analyticsData);
-      setReceipts(receiptsData.receipts || []);
-      if (autopayRes) setAutopayData(autopayRes);
+      // 1. Fetch lightweight analytics and mandates first
+      const pAnalytics = getRevenueAnalytics(merchantId)
+        .then((data) => {
+          setAnalytics(data);
+          if (isManual) setLoading(false);
+        })
+        .catch((err) => console.error("Failed to load analytics:", err));
+
+      const pMandates = listAllAutoPayMandates()
+        .then((res) => {
+          if (res) setAutopayData(res);
+        })
+        .catch(() => null);
+
+      // 2. Fetch latest 30 receipts for the live mempool stream
+      const pReceipts = listReceipts(merchantId, 30)
+        .then((res) => {
+          setReceipts(res.receipts || []);
+        })
+        .catch((err) => console.error("Failed to load receipts:", err));
+
+      await Promise.all([pAnalytics, pMandates, pReceipts]);
       setLastRefreshed(new Date());
     } catch (err: any) {
       console.error("Failed to load dashboard data:", err);
