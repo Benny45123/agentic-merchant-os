@@ -71,23 +71,57 @@ Interact with the autonomous store directly on your phone:
 
 ---
 
-### 3. 🤖 60-Second AI Agent Ingress (Claude Desktop / Cursor / Windsurf / LangChain)
-Connect any external autonomous agent to your live store using Anthropic's **Model Context Protocol (MCP)**:
+### 3. 🤖 60-Second AI Agent Ingress (Claude Desktop / Claude Code / Cursor / Windsurf / LangChain / Continue.dev)
+Connect external autonomous agents to the live store using Anthropic's **Model Context Protocol (MCP)**.
 
-#### ⚡ Option A: 1-Command Automated Installer (macOS, Linux, Windows)
+> **No repository clone is required.** The MCP server is a lightweight local STDIO bridge. You download only the single MCP server file; it connects to the live AWS backend through `MERCHANT_API_BASE`.
+>
+> ```text
+> AI Client
+>    │
+>    │ MCP / JSON-RPC over STDIO
+>    ▼
+> Local Agentic Merchant OS MCP Bridge
+>    │
+>    │ HTTPS
+>    ▼
+> https://32-236-161-117.sslip.io
+>    │
+>    ▼
+> Live Agentic Merchant OS Backend
+> ```
+
+#### ⚡ Option A: Claude Desktop — 1-Command Setup (macOS / Linux)
+Download the MCP bridge without cloning the repository:
+
 ```bash
-curl -sSL https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/scripts/setup_claude_mcp.sh | bash -s -- https://32-236-161-117.sslip.io
-```
-*(Automatically locates your `claude_desktop_config.json`, wires up the 10 merchant tools pointing to the live server, and tests the connection!)*
+mkdir -p "$HOME/.agentic-merchant-os/mcp"
 
-#### 🛠️ Option B: Manual Configuration (Claude Desktop)
-Add this to your `claude_desktop_config.json`:
+curl -fL \
+  https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py \
+  -o "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+python3 -m py_compile \
+  "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+echo "✓ Agentic Merchant OS MCP bridge installed"
+echo "  $HOME/.agentic-merchant-os/mcp/mcp_server.py"
+```
+
+Then add this to your Claude Desktop `claude_desktop_config.json`:
+
+* **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+* **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+* **Linux**: `~/.config/Claude/claude_desktop_config.json`
+
 ```json
 {
   "mcpServers": {
     "agentic-merchant-os": {
       "command": "python3",
-      "args": ["-c", "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py').read().decode('utf-8'))"],
+      "args": [
+        "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
+      ],
       "env": {
         "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
       }
@@ -95,48 +129,256 @@ Add this to your `claude_desktop_config.json`:
   }
 }
 ```
-* **Test it**: Restart Claude Desktop, see the hammer icon (⚒️), and prompt:  
-  `"Search for headphones in the store and purchase 1 unit within a budget of ₹5,000"`
 
-#### 💻 Option C: Cursor &amp; Windsurf IDE
-Go to **Settings ➔ Features ➔ MCP ➔ + Add New MCP Server**:
-* **Name**: `agentic-merchant-os`
-* **Command**: `python3 -c "import urllib.request; exec(urllib.request.urlopen('https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py').read().decode('utf-8'))"`
-* **Environment Variable**: `MERCHANT_API_BASE=https://32-236-161-117.sslip.io`
-* **Prompt Cursor**: `"@agentic-merchant-os what is our current wholesale inventory for laptops?"`
+> Replace `/Users/YOUR_USERNAME` with the user's actual home directory. On macOS, confirm it with `echo $HOME`.
 
-#### 🦜 Option D: Enterprise LangChain / LangGraph Python Swarms
-```python
-from langchain_mcp import MultiServerMCPClient
-from langchain_openai import ChatOpenAI
-from langgraph.prebuilt import create_react_agent
+Restart Claude Desktop completely. The **⚒️ tools icon** should show the Agentic Merchant OS tools.
 
-# 1. Connect to our Live AWS Store
-client = MultiServerMCPClient()
-await client.connect_to_server(
-    "agentic-merchant-os",
-    command="python3",
-    args=["backend/app/api/mcp_server.py"],
-    env={"MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"}
-)
+**Test prompt:**
 
-# 2. Bind tools to any model (GPT-4o, Claude 3.5, Gemini)
-agent = create_react_agent(ChatOpenAI(model="gpt-4o"), client.get_tools())
-
-# 3. Agent negotiates wholesale inventory live on our server!
-res = await agent.ainvoke({"messages": [("user", "Negotiate lowest price for 3x AeroSound Headphones")]})
-print(res["messages"][-1].content)
+```text
+Search the store catalog for headphones and show the available products,
+prices, inventory, and purchase options.
 ```
 
-#### 🧠 Option E: Local Models (Hermes 3, DeepSeek-R1, Ollama via Continue.dev)
-Add to `.continue/config.json`:
+**End-to-end commerce test:**
+
+```text
+Search for headphones in the store and purchase 1 unit within a budget of ₹5,000.
+```
+
+#### 🧪 Claude Desktop — Optional MCP Handshake Test
+Before opening Claude Desktop, verify the local bridge itself:
+
+```bash
+MCP="$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+printf '%s\n' \
+'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"agentic-merchant-os-test","version":"1.0.0"}}}' \
+'{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' \
+'{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+| MERCHANT_API_BASE="https://32-236-161-117.sslip.io" python3 "$MCP"
+```
+
+A successful response includes the `agentic-merchant-os-mcp` server information and the available MCP tools.
+
+#### 💻 Option B: Claude Code CLI — No Repository Clone
+Download only the MCP bridge:
+
+```bash
+mkdir -p "$HOME/.agentic-merchant-os/mcp"
+
+curl -fL \
+  https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py \
+  -o "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+python3 -m py_compile \
+  "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+```
+
+Register it with the current Claude Code project:
+
+```bash
+claude mcp add agentic-merchant-os \
+  --scope project \
+  --env MERCHANT_API_BASE=https://32-236-161-117.sslip.io \
+  -- python3 "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+```
+
+Verify the connection:
+
+```bash
+claude mcp get agentic-merchant-os
+claude mcp list
+```
+
+The server should report **`✓ Connected`** in `claude mcp list`.
+
+Then launch Claude Code:
+
+```bash
+claude
+```
+
+**Test prompt:**
+
+```text
+List all tools available from the agentic-merchant-os MCP server.
+```
+
+**Commerce test:**
+
+```text
+Search the store catalog for iPhone 15, then negotiate the lowest
+wholesale price with the merchant pricing agent.
+```
+
+#### 💻 Option C: Cursor IDE — No Repository Clone
+Download only the MCP bridge:
+
+```bash
+mkdir -p "$HOME/.agentic-merchant-os/mcp"
+
+curl -fL \
+  https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py \
+  -o "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+python3 -m py_compile \
+  "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+```
+
+In Cursor, open **Settings → Features → MCP → Add New MCP Server** and configure:
+
+* **Name**: `agentic-merchant-os`
+* **Type**: `command` / `stdio`
+* **Command**: `python3`
+* **Arguments**: `/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py`
+* **Environment Variable**: `MERCHANT_API_BASE=https://32-236-161-117.sslip.io`
+
+If configuring `mcp.json` directly, use:
+
+```json
+{
+  "mcpServers": {
+    "agentic-merchant-os": {
+      "command": "python3",
+      "args": [
+        "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
+      ],
+      "env": {
+        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+      }
+    }
+  }
+}
+```
+
+Replace `YOUR_USERNAME` with the user's actual macOS username and restart Cursor.
+
+**Test prompt:**
+
+```text
+Use agentic-merchant-os to find wireless headphones with more than
+20 units in stock and check margin headroom for a 10% discount bundle.
+```
+
+#### 🌊 Option D: Windsurf IDE — No Repository Clone
+Download only the MCP bridge:
+
+```bash
+mkdir -p "$HOME/.agentic-merchant-os/mcp"
+
+curl -fL \
+  https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py \
+  -o "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+python3 -m py_compile \
+  "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+```
+
+Open Windsurf's MCP configuration and add:
+
+```json
+{
+  "mcpServers": {
+    "agentic-merchant-os": {
+      "command": "python3",
+      "args": [
+        "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
+      ],
+      "env": {
+        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+      }
+    }
+  }
+}
+```
+
+Replace `YOUR_USERNAME`, restart Windsurf, and verify that `agentic-merchant-os` appears in the MCP server list.
+
+**Test prompt:**
+
+```text
+Use Agentic Merchant OS to search the live catalog for AeroSound Headphones
+and report the current inventory and price.
+```
+
+#### 🦜 Option E: Enterprise LangChain / LangGraph Python Agents
+No repository clone is required. Download only the MCP bridge:
+
+```bash
+mkdir -p "$HOME/.agentic-merchant-os/mcp"
+
+curl -fL \
+  https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py \
+  -o "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+python3 -m py_compile \
+  "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+pip install langchain-mcp-adapters
+```
+
+Connect the local STDIO MCP bridge:
+
+```python
+import asyncio
+from langchain_mcp_adapters.client import MultiServerMCPClient
+
+MCP_SERVER = "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
+
+client = MultiServerMCPClient(
+    {
+        "agentic-merchant-os": {
+            "transport": "stdio",
+            "command": "python3",
+            "args": [MCP_SERVER],
+            "env": {
+                "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+            },
+        }
+    }
+)
+
+
+async def main():
+    tools = await client.get_tools()
+
+    print("Connected Agentic Merchant OS tools:")
+    for tool in tools:
+        print(f" - {tool.name}")
+
+
+asyncio.run(main())
+```
+
+Replace `YOUR_USERNAME` with the actual username. Bind the returned tools to your preferred LangChain/LangGraph model or agent.
+
+#### 🧠 Option F: Local Models (Hermes 3, DeepSeek-R1, Ollama via Continue.dev)
+**No repository clone is required.** Download only the MCP bridge:
+
+```bash
+mkdir -p "$HOME/.agentic-merchant-os/mcp"
+
+curl -fL \
+  https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py \
+  -o "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+python3 -m py_compile \
+  "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+```
+
+Then add the local STDIO MCP server to Continue's MCP configuration:
+
 ```json
 {
   "mcpServers": [
     {
       "name": "agentic-merchant-os",
       "command": "python3",
-      "args": ["backend/app/api/mcp_server.py"],
+      "args": [
+        "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
+      ],
       "env": {
         "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
       }
@@ -144,6 +386,38 @@ Add to `.continue/config.json`:
   ]
 }
 ```
+
+Replace `YOUR_USERNAME` with the user's actual username. The local model itself can remain Ollama/Hermes/DeepSeek; the MCP bridge provides the commerce tools and the live backend remains remote.
+
+**Test prompt:**
+
+```text
+Use agentic-merchant-os to search the live store for laptops
+and report available stock and prices.
+```
+
+#### 🔌 Option G: Universal MCP Client Configuration
+Any MCP-compatible client that supports **STDIO command servers** can use the same bridge:
+
+```json
+{
+  "mcpServers": {
+    "agentic-merchant-os": {
+      "command": "python3",
+      "args": [
+        "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
+      ],
+      "env": {
+        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+      }
+    }
+  }
+}
+```
+
+The only client-specific part is where its MCP configuration is stored. **The Agentic Merchant OS backend does not need to be cloned or run locally.**
+
+> **Windows note:** The tested bridge workflow above is macOS/Linux. Windows users should use a Python 3 installation plus the equivalent local file path, or use a client-specific Windows MCP configuration. Do not assume Unix `$HOME` paths on Windows.
 
 ---
 
@@ -374,98 +648,174 @@ bin\stop
 
 <h2 id="universal-mcp-gateway"><a id="claude-mcp-server"></a>🔌 Universal AI Agent Ingress: Claude, Cursor, LangChain &amp; Autonomous Swarms (MCP)</h2>
 
-Agentic Merchant OS exposes a native **Model Context Protocol (MCP)** server and **Universal Agent Protocol (UAP-1.0)** gateway. Because MCP is an open, model-agnostic standard (the *"USB-C port for AI applications"*), **any autonomous agent**—including Claude, Cursor, Windsurf, LangChain, CrewAI, or local Llama 3/DeepSeek models—can discover the catalog, negotiate wholesale bids, check margins, and settle transactions.
+Agentic Merchant OS exposes a native **Model Context Protocol (MCP)** server and **Universal Agent Protocol (UAP-1.0)** gateway. The MCP integration uses a lightweight local STDIO bridge that connects to the live AWS backend. **Users do not need to clone the repository or run the full Agentic Merchant OS locally.**
+
+```text
+AI Client → Local MCP Bridge → HTTPS → Live Agentic Merchant OS
+```
 
 ---
 
-### 💻 1. Claude Code CLI Integration (Auto-Discovered)
+### 💻 1. Claude Code CLI Integration (No Repository Clone)
 
-Because [`.mcp.json`](file:///workspace/.mcp.json) is pre-configured in the repository root, simply launch Claude Code in your terminal:
+Download only the MCP bridge:
+
+```bash
+mkdir -p "$HOME/.agentic-merchant-os/mcp"
+
+curl -fL \
+  https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py \
+  -o "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+python3 -m py_compile \
+  "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+```
+
+Register it for the current project:
+
+```bash
+claude mcp add agentic-merchant-os \
+  --scope project \
+  --env MERCHANT_API_BASE=https://32-236-161-117.sslip.io \
+  -- python3 "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+```
+
+Verify:
+
+```bash
+claude mcp get agentic-merchant-os
+claude mcp list
+```
+
+Expected status:
+
+```text
+agentic-merchant-os ... ✓ Connected
+```
+
+Then launch:
 
 ```bash
 claude
 ```
 
-Claude Code automatically discovers and connects to the `agentic-merchant-os` MCP server!
-
-*Try asking Claude Code:*
+Try asking Claude Code:
 
 > *"Search the store catalog for iPhone 15, then negotiate the lowest wholesale price with the merchant pricing agent."*
 
 ---
 
-### 🤖 2. Claude Desktop Integration (macOS, Windows, Linux)
+### 🤖 2. Claude Desktop Integration (No Repository Clone)
 
-#### ⚡ 1-Click Automatic Setup:
-Run the pre-configured setup script pointing to your local server or live AWS instance:
+Download only the MCP bridge:
 
 ```bash
-# Connect to local server:
-./scripts/setup_claude_mcp.sh http://localhost:8000
+mkdir -p "$HOME/.agentic-merchant-os/mcp"
 
-# OR connect to your live AWS deployment from anywhere:
-./scripts/setup_claude_mcp.sh http://<YOUR_AWS_PUBLIC_IP>:8000
+curl -fL \
+  https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py \
+  -o "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+python3 -m py_compile \
+  "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
 ```
-*This auto-detects your operating system (macOS, Windows, or Linux) and safely injects the AMOS configuration into `claude_desktop_config.json`.*
 
-#### 🛠️ Manual Configuration:
-Add the following to your `claude_desktop_config.json`:
+Then configure `claude_desktop_config.json`:
+
 * **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
 * **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+* **Linux**: `~/.config/Claude/claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
     "agentic-merchant-os": {
       "command": "python3",
-      "args": ["<REPO_DIR>/backend/app/api/mcp_server.py"],
+      "args": [
+        "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
+      ],
       "env": {
-        "MERCHANT_API_BASE": "http://localhost:8000"
+        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
       }
     }
   }
 }
 ```
 
+Replace `YOUR_USERNAME`, restart Claude Desktop completely, and verify the **⚒️ tools icon** appears.
+
 ---
 
-### ⚡ 3. Cursor &amp; Windsurf IDE Integration
+### ⚡ 3. Cursor &amp; Windsurf IDE Integration (No Repository Clone)
 
-Connect your developer IDE agents directly to the store:
-1. In Cursor, open **Settings ➔ Features ➔ MCP**.
-2. Click **+ Add New MCP Server**:
-   - **Name**: `agentic-merchant-os`
-   - **Type**: `command`
-   - **Command**: `python3 <REPO_DIR>/backend/app/api/mcp_server.py`
-   - **Environment Variable**: `MERCHANT_API_BASE=http://localhost:8000` (or your AWS IP)
-3. Now, in Cursor Chat, simply type:
-   > *"@agentic-merchant-os find wireless headphones with >20 units in stock and check margin headroom for a 10% discount bundle."*
+Download the same MCP bridge once:
+
+```bash
+mkdir -p "$HOME/.agentic-merchant-os/mcp"
+
+curl -fL \
+  https://raw.githubusercontent.com/Benny45123/agentic-merchant-os/main/backend/app/api/mcp_server.py \
+  -o "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+
+python3 -m py_compile \
+  "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
+```
+
+Use this STDIO configuration in Cursor or Windsurf:
+
+```json
+{
+  "mcpServers": {
+    "agentic-merchant-os": {
+      "command": "python3",
+      "args": [
+        "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
+      ],
+      "env": {
+        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+      }
+    }
+  }
+}
+```
+
+Replace `YOUR_USERNAME` and restart the IDE.
 
 ---
 
 ### 🐍 4. Python Autonomous Agents (LangChain, LangGraph &amp; CrewAI)
 
-Any Python-based autonomous agent or procurement bot can plug into AMOS tools natively via the `langchain-mcp` adapter:
+No repository clone is required. Install the MCP adapter and use the downloaded bridge:
+
+```bash
+pip install langchain-mcp-adapters
+```
 
 ```python
-from langchain_mcp import MultiServerMCPClient
+from langchain_mcp_adapters.client import MultiServerMCPClient
 
-# Connect to the Agentic Merchant OS MCP Server
-client = MultiServerMCPClient()
-await client.connect_to_server(
-    "agentic-merchant-os",
-    command="python3",
-    args=["backend/app/api/mcp_server.py"],
-    env={"MERCHANT_API_BASE": "http://localhost:8000"}  # or AWS IP
+client = MultiServerMCPClient(
+    {
+        "agentic-merchant-os": {
+            "transport": "stdio",
+            "command": "python3",
+            "args": [
+                "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
+            ],
+            "env": {
+                "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+            },
+        }
+    }
 )
 
-# Access all 10 Guardian-gated tools
-tools = client.get_tools()
+# Discover the live Agentic Merchant OS tools
+tools = await client.get_tools()
 
-# Bind directly to OpenAI GPT-4o, Gemini 1.5/2.0, DeepSeek-R1, or Claude 3.5 Sonnet
-agent = create_react_agent(llm, tools)
-response = await agent.ainvoke({"messages": [("user", "Procure 3x HP-001 at wholesale rate")]})
+# Bind `tools` to your LangChain / LangGraph / CrewAI agent.
 ```
+
+Replace `YOUR_USERNAME` with the actual username.
 
 ---
 
