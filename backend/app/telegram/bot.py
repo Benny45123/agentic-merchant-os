@@ -173,7 +173,10 @@ class TelegramBotService:
                 res = await self.handlers.handle_autopay_verify(buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
-
+            elif data.startswith("mandate:auth:"):
+                tok = data.split(":", 2)[2]
+                res = await self.handlers.handle_mandate_online_auth(tok, buyer_id=tg_buyer_id)
+                await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             elif data == "cmd:catalog":
                 res = await self.handlers.handle_catalog()
@@ -219,13 +222,12 @@ class TelegramBotService:
                     res = await self.handlers.handle_autopay_status(buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
-
             elif text.startswith("/help"):
                 res = await self.handlers.handle_start(user_name)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
             else:
-                res = await self.handlers.handle_text_message(text)
+                res = await self.handlers.handle_text_message(text, buyer_id=tg_buyer_id)
                 await self.send_message(chat_id, res["text"], res.get("reply_markup"))
 
 

@@ -1015,7 +1015,7 @@ class TelegramHandlers:
             return {"text": f"⚠️ <i>Error authorizing mandate: {html.escape(str(e))}</i>"}
 
 
-    async def handle_text_message(self, text_input: str) -> Dict[str, Any]:
+    async def handle_text_message(self, text_input: str, buyer_id: str = "b_001") -> Dict[str, Any]:
         """Routes natural language queries to search, direct buy, bargain, or general assistant."""
         query = text_input.lower().strip()
         safe_input = html.escape(text_input)
@@ -1023,13 +1023,13 @@ class TelegramHandlers:
         # 0. Check for AutoPay triggers
         if "autopay" in query or "mandate" in query or "e-mandate" in query:
             if "verify" in query or "check" in query or "status" in query:
-                return await self.handle_autopay_verify()
+                return await self.handle_autopay_verify(buyer_id)
             elif "on" in query or "enable" in query or "activate" in query or "start" in query or "setup" in query:
-                return await self.handle_autopay_toggle(True)
+                return await self.handle_autopay_toggle(True, buyer_id)
             elif "off" in query or "disable" in query or "pause" in query or "revoke" in query or "stop" in query:
-                return await self.handle_autopay_toggle(False)
+                return await self.handle_autopay_toggle(False, buyer_id)
             else:
-                return await self.handle_autopay_status()
+                return await self.handle_autopay_status(buyer_id)
 
 
 
