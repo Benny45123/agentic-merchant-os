@@ -838,30 +838,9 @@ class TelegramHandlers:
                             ]
                         ]
                     }
+                    return {"text": text, "reply_markup": keyboard}
                 else:
-                    auth_btn = {"text": "⚡ Authorize Mandate on Razorpay", "url": auth_url} if is_public_https else {"text": "⚡ Authorize Mandate on Razorpay", "callback_data": f"mandate:auth:{token}"}
-                    text = (
-                        f"⏳ <b>RAZORPAY MANDATE GATE: AWAITING HUMAN SIGNATURE 🟡</b>\n"
-                        f"━━━━━━━━━━━━━━━━━━━━\n"
-                        f"• <b>Status:</b> <code>PENDING_AUTH (Awaiting 1-Time Authorization)</code>\n"
-                        f"• <b>Proposed Mandate Pool:</b> <b>₹{cap_inr:,.2f}</b>\n"
-                        f"• <b>Recurring Token:</b> <code>{token}</code>\n"
-                        f"• <b>Linked VPA:</b> <code>{vpa}</code> ({bank})\n"
-                        f"• <b>Security Guard:</b> <code>Dual-Lock Zero-LLM Commerce Guardian</code>\n\n"
-                        f"👉 <i>Tap the button below to authorize on Razorpay, or open the link in your browser:</i>\n\n"
-                        f"🔗 <code>{auth_url}</code>\n\n"
-                        f"⚠️ <i>Zero-click autonomous purchases remain safely LOCKED until you complete authorization!</i>"
-                    )
-                    keyboard = {
-                        "inline_keyboard": [
-                            [auth_btn],
-                            [
-                                {"text": "🛡️ Check Authorization Status", "callback_data": "autopay:verify"},
-                                {"text": "🛍️ Back to Catalog", "callback_data": "cmd:catalog"}
-                            ]
-                        ]
-                    }
-                return {"text": text, "reply_markup": keyboard}
+                    return await self.handle_autopay_toggle(True, buyer_id=buyer_id)
         except Exception as e:
             return {"text": f"⚠️ <i>Error checking AutoPay status: {html.escape(str(e))}</i>"}
 
@@ -1036,30 +1015,30 @@ class TelegramHandlers:
         # 1. Check for direct buy triggers (No bargaining)
         if any(w in query for w in ["buy now", "purchase", "order", "checkout", "buy "]) and not any(w in query for w in ["bargain", "discount", "offer"]):
             if "iphone" in query:
-                return await self.handle_direct_buy("PHN-APL-15", 1)
+                return await self.handle_direct_buy("PHN-APL-15", 1, buyer_id=buyer_id)
             elif "galaxy" in query or "s24" in query or "samsung" in query:
-                return await self.handle_direct_buy("PHN-SAM-S24", 1)
+                return await self.handle_direct_buy("PHN-SAM-S24", 1, buyer_id=buyer_id)
             elif "oneplus" in query or "12r" in query:
-                return await self.handle_direct_buy("PHN-ONE-12R", 1)
+                return await self.handle_direct_buy("PHN-ONE-12R", 1, buyer_id=buyer_id)
             elif "headphone" in query or "hp-001" in query:
-                return await self.handle_direct_buy("HP-001", 1)
+                return await self.handle_direct_buy("HP-001", 1, buyer_id=buyer_id)
             elif "macbook" in query or "laptop" in query:
-                return await self.handle_direct_buy("LAP-APL-M3", 1)
+                return await self.handle_direct_buy("LAP-APL-M3", 1, buyer_id=buyer_id)
 
         # 2. Check for negotiation triggers
         if any(w in query for w in ["bargain", "discount", "offer", "lowest price", "negotiate", "deal", "cheap"]):
             if "iphone" in query:
-                return await self.handle_rfq_bargain("PHN-APL-15", 1)
+                return await self.handle_rfq_bargain("PHN-APL-15", 1, buyer_id=buyer_id)
             elif "galaxy" in query or "s24" in query or "samsung" in query:
-                return await self.handle_rfq_bargain("PHN-SAM-S24", 1)
+                return await self.handle_rfq_bargain("PHN-SAM-S24", 1, buyer_id=buyer_id)
             elif "oneplus" in query or "12r" in query:
-                return await self.handle_rfq_bargain("PHN-ONE-12R", 1)
+                return await self.handle_rfq_bargain("PHN-ONE-12R", 1, buyer_id=buyer_id)
             elif "headphone" in query or "hp-001" in query or "audio" in query:
-                return await self.handle_rfq_bargain("HP-001", 1)
+                return await self.handle_rfq_bargain("HP-001", 1, buyer_id=buyer_id)
             elif "macbook" in query or "laptop" in query:
-                return await self.handle_rfq_bargain("LAP-APL-M3", 1)
+                return await self.handle_rfq_bargain("LAP-APL-M3", 1, buyer_id=buyer_id)
             else:
-                return await self.handle_rfq_bargain("PHN-APL-15", 1)
+                return await self.handle_rfq_bargain("PHN-APL-15", 1, buyer_id=buyer_id)
 
         # 3. Check for product specific mentions
         if "iphone" in query:
