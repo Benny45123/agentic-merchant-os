@@ -34,6 +34,22 @@
 | 🧪 71/71 Pytests Passing | 🎬 11/11 E2E Scenarios Green | 🛡️ 22 Invariant Guardrails | ⚡ &lt;50ms Decision Latency |
 | :---: | :---: | :---: | :---: |
 
+> ### 🏗️ Original Project & Architecture
+>
+> **Agentic Merchant OS (AMOS)** was originally created and implemented by
+> **Benny Hinn Bezawada**.
+>
+> 🔗 **Original Repository:**  
+> https://github.com/Benny45123/agentic-merchant-os
+>
+> 📜 **License:**  
+> This repository is released under the **Agentic Merchant OS Source Available License**.
+> See [`LICENSE`](./LICENSE) for permitted use, attribution, and derivative-work terms.
+>
+> Forks, adaptations, and derivative works must retain attribution to the
+> original project and must clearly distinguish modifications from the
+> original implementation.
+
 ---
 
 <h2 id="live-demo">🌐 30-Second Quick Live Evaluation &amp; Interactive Demo</h2>
@@ -1417,6 +1433,27 @@ flowchart TB
 <h2 id="hackathon-track">📜 Hackathon Track</h2>
 
 Built for the **Razorpay AI Buildathon (Track 01: AI Growth & Agentic Commerce)**. All payments and tokens operate strictly in Razorpay Test Mode.
+
+---
+
+## 📜 Attribution & License
+
+**Agentic Merchant OS (AMOS)** was created by **Benny Hinn Bezawada**.
+
+Original repository:
+
+https://github.com/Benny45123/agentic-merchant-os
+
+The original AMOS architecture, implementation, and system design are
+authored by Benny Hinn Bezawada.
+
+You may inspect, run, test, fork, and modify the project as permitted by
+the [Agentic Merchant OS Source Available License](./LICENSE).
+
+Any public derivative must retain attribution to the original project and
+must clearly identify the changes made by the derivative author.
+
+See [`LICENSE`](./LICENSE) and [`AUTHORS.md`](./AUTHORS.md) for details.
 
 <div align="center">
 

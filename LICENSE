@@ -1,0 +1,106 @@
+AGENTIC MERCHANT OS — SOURCE AVAILABLE LICENSE
+
+Copyright (c) 2026 Benny Hinn Bezawada
+
+Project:
+Agentic Merchant OS (AMOS)
+
+Original Repository:
+https://github.com/Benny45123/agentic-merchant-os
+
+1. DEFINITIONS
+
+"Software" means the source code, documentation, configuration, tests,
+architecture, assets, scripts, and other materials contained in the
+Agentic Merchant OS repository.
+
+"Author" means Benny Hinn Bezawada, the original author and maintainer
+of Agentic Merchant OS.
+
+"Derivative Work" means any modified, adapted, extended, or substantially
+reused version of the Software or its architecture.
+
+2. PERMITTED USE
+
+Permission is granted to any person to:
+
+- view and inspect the Software;
+- run the Software for personal, educational, research, evaluation,
+  testing, or demonstration purposes;
+- fork the repository for personal or educational experimentation;
+- modify the Software for personal, educational, research, evaluation,
+  testing, or demonstration purposes.
+
+3. ATTRIBUTION
+
+Any permitted copy, fork, modification, or derivative work must retain:
+
+- the original copyright notice;
+- this license;
+- attribution to Benny Hinn Bezawada as the original author;
+- a link to the original repository:
+  https://github.com/Benny45123/agentic-merchant-os
+
+Any public derivative work must clearly state that it is derived from
+Agentic Merchant OS (AMOS) and must not imply that the original
+architecture or implementation was created by the derivative author.
+
+4. PROHIBITED REPRESENTATION
+
+You may not:
+
+- present Agentic Merchant OS, its original architecture, or its original
+  implementation as your own original work;
+- remove or obscure attribution to Benny Hinn Bezawada;
+- submit the unmodified Software, or a substantially similar derivative,
+  to a competition, hackathon, award, academic submission, portfolio,
+  commercial demonstration, or public project while representing the
+  original work as independently created by you;
+- falsely claim authorship of the original AMOS architecture,
+  implementation, or design.
+
+5. COMMERCIAL USE
+
+Commercial use, commercial redistribution, sublicensing, or incorporation
+of substantial portions of the Software into a commercial product is not
+granted by this license without prior written permission from the Author.
+
+6. PUBLIC DERIVATIVE WORKS
+
+You may publish modifications for non-commercial research, education,
+testing, or experimentation, provided that:
+
+- the original project is prominently credited;
+- the original repository is linked;
+- material modifications are clearly identified; and
+- the derivative is not represented as an independently authored
+  implementation of the original AMOS system.
+
+7. THIRD-PARTY COMPONENTS
+
+This license applies only to materials authored by Benny Hinn Bezawada
+within the Agentic Merchant OS repository.
+
+Third-party libraries, frameworks, APIs, SDKs, models, trademarks,
+services, and other external components remain subject to their own
+licenses and terms.
+
+8. NO WARRANTY
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
+
+9. LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF
+THE SOFTWARE.
+
+10. RESERVATION OF RIGHTS
+
+All rights not expressly granted by this license are reserved by the
+Author.
+
+For permissions beyond this license, contact the Author through the
+official repository.
