@@ -24,6 +24,11 @@ async def lifespan(app: FastAPI):
     # 1. Ensure all database tables exist
     engine = get_engine()
     async with engine.begin() as conn:
+        try:
+            await conn.execute(text("PRAGMA journal_mode=WAL;"))
+            await conn.execute(text("PRAGMA busy_timeout=5000;"))
+        except Exception:
+            pass
         await conn.run_sync(Base.metadata.create_all)
         try:
             res = await conn.execute(text("PRAGMA table_info(mandates)"))

@@ -18,10 +18,12 @@ def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
         settings = get_settings()
+        connect_args = {"timeout": 30} if "sqlite" in settings.DATABASE_URL else {}
         _engine = create_async_engine(
             settings.DATABASE_URL,
             echo=False,
             future=True,
+            connect_args=connect_args,
         )
     return _engine
 

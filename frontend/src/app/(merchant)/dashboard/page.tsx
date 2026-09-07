@@ -73,7 +73,8 @@ export default function MerchantDashboardPage() {
 
 
   // Live Stream channel filter
-  const [channelFilter, setChannelFilter] = useState<"ALL" | "TELEGRAM" | "CLAUDE" | "WEB" | "BLOCKED">("ALL");
+  type ChannelFilterType = "ALL" | "AI_AGENTS" | "NPCI" | "TELEGRAM" | "WEB" | "BLOCKED";
+  const [channelFilter, setChannelFilter] = useState<ChannelFilterType>("ALL");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   function formatRelativeTime(dateStr: string): string {
@@ -101,13 +102,37 @@ export default function MerchantDashboardPage() {
       return `tg_${raw.slice(0, 2)}***`;
     }
     if (id.startsWith("b_dev_")) {
-      return `b_dev_${id.substring(6, 11)}...`;
+      return `web_${id.substring(6, 11)}...`;
+    }
+    if (id.startsWith("cursor_")) {
+      return `cursor_${id.substring(7, 12)}...`;
+    }
+    if (id.startsWith("windsurf_")) {
+      return `windsurf_${id.substring(9, 14)}...`;
     }
     if (id.startsWith("claude_")) {
       return `claude_${id.substring(7, 12)}...`;
     }
+    if (id.startsWith("langchain_")) {
+      return `langchain_${id.substring(10, 15)}...`;
+    }
+    if (id.startsWith("crewai_")) {
+      return `crewai_${id.substring(7, 12)}...`;
+    }
     if (id.startsWith("mcp_")) {
       return `mcp_${id.substring(4, 9)}...`;
+    }
+    if (id.startsWith("chatgpt_")) {
+      return `chatgpt_${id.substring(8, 13)}...`;
+    }
+    if (id.startsWith("openai_")) {
+      return `openai_${id.substring(7, 12)}...`;
+    }
+    if (id.startsWith("uap_")) {
+      return `uap_${id.substring(4, 9)}...`;
+    }
+    if (id === "b_001") {
+      return "uap_agent_sim";
     }
     return id;
   }
@@ -120,6 +145,37 @@ export default function MerchantDashboardPage() {
       return `${maskedHandle}@${domain}`;
     }
     return maskBuyerId(vpa);
+  }
+
+  function getChannelMetadata(buyerId: string) {
+    if (buyerId.startsWith("cursor_")) {
+      return { label: "Cursor IDE (MCP)", icon: "⚡", color: "bg-violet-50 text-violet-700 border-violet-200" };
+    }
+    if (buyerId.startsWith("windsurf_")) {
+      return { label: "Windsurf IDE (MCP)", icon: "🌊", color: "bg-teal-50 text-teal-700 border-teal-200" };
+    }
+    if (buyerId.startsWith("claude_")) {
+      return { label: "Claude Desktop / Code (MCP)", icon: "🤖", color: "bg-amber-50 text-amber-700 border-amber-200" };
+    }
+    if (buyerId.startsWith("chatgpt_") || buyerId.startsWith("openai_")) {
+      return { label: "ChatGPT / OpenAI (MCP)", icon: "🟢", color: "bg-emerald-50 text-emerald-800 border-emerald-300" };
+    }
+    if (buyerId.startsWith("langchain_") || buyerId.startsWith("crewai_") || buyerId.startsWith("swarm_")) {
+      return { label: "Autonomous Swarm (LangChain MCP)", icon: "🐝", color: "bg-orange-50 text-orange-700 border-orange-200" };
+    }
+    if (buyerId.startsWith("mcp_")) {
+      return { label: "Autonomous AI Agent (MCP)", icon: "🤖", color: "bg-amber-50 text-amber-700 border-amber-200" };
+    }
+    if (buyerId.startsWith("uap_")) {
+      return { label: "NPCI UAP-1.0 Protocol", icon: "🇮🇳", color: "bg-blue-50 text-blue-700 border-blue-200" };
+    }
+    if (buyerId.startsWith("tg_")) {
+      return { label: "Telegram Mobile Gateway", icon: "📱", color: "bg-sky-50 text-sky-700 border-sky-200" };
+    }
+    if (buyerId.startsWith("b_dev_") || buyerId.startsWith("web_")) {
+      return { label: "Web Storefront", icon: "💻", color: "bg-emerald-50 text-emerald-700 border-emerald-200" };
+    }
+    return { label: "Autonomous Simulator (Seed)", icon: "🚀", color: "bg-indigo-50 text-indigo-700 border-indigo-200" };
   }
 
   const loadData = async (isManual = false) => {
@@ -226,25 +282,70 @@ export default function MerchantDashboardPage() {
   const approvedCount = useMemo(() => receipts.filter((r) => r.decision === "APPROVE").length, [receipts]);
   const blockedCount = useMemo(() => receipts.filter((r) => r.decision === "BLOCK").length, [receipts]);
 
-  const telegramCount = useMemo(() => receipts.filter((r) => (r.mandate_snapshot?.buyer_id || "").startsWith("tg_")).length, [receipts]);
-  const claudeCount = useMemo(() => receipts.filter((r) => {
-    const id = r.mandate_snapshot?.buyer_id || "";
-    return id.startsWith("claude_") || id.startsWith("mcp_");
+  const aiAgentsCount = useMemo(() => receipts.filter((r) => {
+    const id = r.mandate_snapshot?.buyer_id || (r as any).buyer_id || "";
+    return (
+      id.startsWith("claude_") ||
+      id.startsWith("cursor_") ||
+      id.startsWith("windsurf_") ||
+      id.startsWith("chatgpt_") ||
+      id.startsWith("openai_") ||
+      id.startsWith("langchain_") ||
+      id.startsWith("crewai_") ||
+      id.startsWith("swarm_") ||
+      id.startsWith("mcp_")
+    );
   }).length, [receipts]);
-  const webCount = useMemo(() => receipts.filter((r) => (r.mandate_snapshot?.buyer_id || "").startsWith("b_dev_")).length, [receipts]);
+
+  const uapCount = useMemo(() => receipts.filter((r) => {
+    const id = r.mandate_snapshot?.buyer_id || (r as any).buyer_id || "";
+    return id.startsWith("uap_") || id === "b_001";
+  }).length, [receipts]);
+
+  const telegramCount = useMemo(() => receipts.filter((r) => {
+    const id = r.mandate_snapshot?.buyer_id || (r as any).buyer_id || "";
+    return id.startsWith("tg_");
+  }).length, [receipts]);
+
+  const webCount = useMemo(() => receipts.filter((r) => {
+    const id = r.mandate_snapshot?.buyer_id || (r as any).buyer_id || "";
+    return id.startsWith("b_dev_") || id.startsWith("web_");
+  }).length, [receipts]);
 
   const liveStreamReceipts = useMemo(() => {
     return receipts
       .filter((r) => {
-        const buyerId = r.mandate_snapshot?.buyer_id || "";
+        const buyerId = r.mandate_snapshot?.buyer_id || (r as any).buyer_id || "";
+        if (channelFilter === "AI_AGENTS") {
+          return (
+            buyerId.startsWith("claude_") ||
+            buyerId.startsWith("cursor_") ||
+            buyerId.startsWith("windsurf_") ||
+            buyerId.startsWith("chatgpt_") ||
+            buyerId.startsWith("openai_") ||
+            buyerId.startsWith("langchain_") ||
+            buyerId.startsWith("crewai_") ||
+            buyerId.startsWith("swarm_") ||
+            buyerId.startsWith("mcp_")
+          );
+        }
+        if (channelFilter === "NPCI") return buyerId.startsWith("uap_") || buyerId === "b_001";
         if (channelFilter === "TELEGRAM") return buyerId.startsWith("tg_");
-        if (channelFilter === "CLAUDE") return buyerId.startsWith("claude_") || buyerId.startsWith("mcp_");
-        if (channelFilter === "WEB") return buyerId.startsWith("b_dev_");
+        if (channelFilter === "WEB") return buyerId.startsWith("b_dev_") || buyerId.startsWith("web_");
         if (channelFilter === "BLOCKED") return r.decision === "BLOCK";
         return true;
       })
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   }, [receipts, channelFilter]);
+
+  const filterTabs: { id: ChannelFilterType; label: string; icon: string; count: number }[] = useMemo(() => [
+    { id: "ALL", label: "All Events", icon: "🌐", count: receipts.length },
+    { id: "AI_AGENTS", label: "All AI Agents (MCP)", icon: "🤖", count: aiAgentsCount },
+    { id: "NPCI", label: "NPCI Protocol", icon: "🇮🇳", count: uapCount },
+    { id: "TELEGRAM", label: "Telegram Mobile", icon: "📱", count: telegramCount },
+    { id: "WEB", label: "Web Store", icon: "💻", count: webCount },
+    { id: "BLOCKED", label: "Blocked Exploits", icon: "🛑", count: blockedCount },
+  ], [receipts.length, aiAgentsCount, uapCount, telegramCount, webCount, blockedCount]);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -592,26 +693,15 @@ export default function MerchantDashboardPage() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold text-slate-900 text-sm">Shopper ({maskBuyerId(m.buyer_id)})</span>
-                        {m.buyer_id.startsWith("tg_") && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200 flex items-center gap-1">
-                            <span>📱</span> Telegram
-                          </span>
-                        )}
-                        {m.buyer_id.startsWith("b_dev_") && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
-                            <span>💻</span> Web Browser
-                          </span>
-                        )}
-                        {(m.buyer_id.startsWith("claude_") || m.buyer_id.startsWith("mcp_")) && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 flex items-center gap-1">
-                            <span>🤖</span> Claude MCP
-                          </span>
-                        )}
-                        {m.buyer_id === "b_001" && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
-                            <span>⚡</span> Benchmark Seed
-                          </span>
-                        )}
+                        {(() => {
+                          const meta = getChannelMetadata(m.buyer_id);
+                          return (
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border flex items-center gap-1 ${meta.color}`}>
+                              <span>{meta.icon}</span>
+                              <span>{meta.label}</span>
+                            </span>
+                          );
+                        })()}
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
                             isEnabled
@@ -891,68 +981,59 @@ export default function MerchantDashboardPage() {
             </p>
           </div>
 
-          {/* Channel Filter Chips & Refresh Controls */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => setChannelFilter("ALL")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                channelFilter === "ALL"
-                  ? "bg-slate-900 text-white shadow-sm"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-              }`}
-            >
-              All Events ({receipts.length})
-            </button>
-            <button
-              onClick={() => setChannelFilter("TELEGRAM")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                channelFilter === "TELEGRAM"
-                  ? "bg-sky-600 text-white shadow-sm"
-                  : "bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200"
-              }`}
-            >
-              <span>📱</span> Telegram ({telegramCount})
-            </button>
-            <button
-              onClick={() => setChannelFilter("CLAUDE")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                channelFilter === "CLAUDE"
-                  ? "bg-amber-600 text-white shadow-sm"
-                  : "bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200"
-              }`}
-            >
-              <span>🤖</span> Claude MCP ({claudeCount})
-            </button>
-            <button
-              onClick={() => setChannelFilter("WEB")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                channelFilter === "WEB"
-                  ? "bg-emerald-600 text-white shadow-sm"
-                  : "bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
-              }`}
-            >
-              <span>💻</span> Web ({webCount})
-            </button>
-            <button
-              onClick={() => setChannelFilter("BLOCKED")}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                channelFilter === "BLOCKED"
-                  ? "bg-rose-600 text-white shadow-sm"
-                  : "bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200"
-              }`}
-            >
-              <span>🛑</span> Blocked ({blockedCount})
-            </button>
-
+          {/* Quick Refresh & Auto-sync indicator */}
+          <div className="flex items-center gap-2 text-xs font-mono text-slate-500 self-start lg:self-auto">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-[11px] font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Auto-Sync 10s</span>
+            </span>
             <button
               onClick={() => loadData(true)}
               disabled={loading}
               title="Sync Live Stream"
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all cursor-pointer ml-1"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-all cursor-pointer flex items-center gap-1.5"
             >
               <RotateCw className={`w-3.5 h-3.5 ${loading ? "animate-spin text-indigo-600" : ""}`} />
+              <span className="font-sans font-semibold text-xs">Sync</span>
             </button>
           </div>
+        </div>
+
+        {/* Sleek Segmented Channel Filter Bar */}
+        <div className="flex items-center gap-1.5 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80 overflow-x-auto max-w-full scrollbar-none shadow-2xs">
+          {filterTabs.map((tab) => {
+            const isActive = channelFilter === tab.id;
+            const isBlockedTab = tab.id === "BLOCKED";
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setChannelFilter(tab.id)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-2 cursor-pointer ${
+                  isActive
+                    ? isBlockedTab
+                      ? "bg-rose-600 text-white shadow-sm"
+                      : "bg-slate-900 text-white shadow-sm"
+                    : isBlockedTab && tab.count > 0
+                    ? "text-rose-700 hover:bg-rose-50/80 hover:text-rose-900"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/80"
+                }`}
+              >
+                <span className="text-xs">{tab.icon}</span>
+                <span>{tab.label}</span>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold ${
+                    isActive
+                      ? "bg-white/20 text-white"
+                      : isBlockedTab && tab.count > 0
+                      ? "bg-rose-100 text-rose-800"
+                      : "bg-slate-200/80 text-slate-600"
+                  }`}
+                >
+                  {tab.count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Activity Cards Stream */}
@@ -960,29 +1041,12 @@ export default function MerchantDashboardPage() {
           {liveStreamReceipts.length > 0 ? (
             liveStreamReceipts.map((r) => {
               const buyerId = r.mandate_snapshot?.buyer_id || (r as any).buyer_id || "b_001";
-              const isTg = buyerId.startsWith("tg_");
-              const isClaude = buyerId.startsWith("claude_") || buyerId.startsWith("mcp_");
-              const isWeb = buyerId.startsWith("b_dev_");
               const isApproved = r.decision === "APPROVE";
               const isBlocked = r.decision === "BLOCK";
 
-              // Channel metadata
-              const channelBadge = isTg
-                ? { label: "Telegram Mobile", icon: "📱", color: "bg-sky-50 text-sky-700 border-sky-200" }
-                : isClaude
-                ? { label: "Claude MCP", icon: "🤖", color: "bg-amber-50 text-amber-700 border-amber-200" }
-                : isWeb
-                ? { label: "Web Browser", icon: "💻", color: "bg-emerald-50 text-emerald-700 border-emerald-200" }
-                : { label: "Benchmark Seed", icon: "⚡", color: "bg-indigo-50 text-indigo-700 border-indigo-200" };
-
-              // Privacy Masked User ID
-              const maskedId = isTg
-                ? `tg_${buyerId.substring(3, 6)}***${buyerId.slice(-3)}`
-                : isWeb
-                ? `b_dev_${buyerId.substring(6, 10)}...`
-                : isClaude
-                ? `claude_${buyerId.substring(7, 11)}...`
-                : buyerId;
+              // Channel metadata & privacy masked ID
+              const channelBadge = getChannelMetadata(buyerId);
+              const maskedId = maskBuyerId(buyerId);
 
               // Action description
               const failReason = (r.failure_reason || "").toLowerCase();
@@ -1121,12 +1185,31 @@ export default function MerchantDashboardPage() {
               );
             })
           ) : (
-            <div className="text-center py-12 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200">
-              <Radio className="w-8 h-8 text-slate-300 mx-auto mb-2 animate-pulse" />
-              <p className="text-xs font-bold text-slate-600">No activity detected for this filter</p>
-              <p className="text-[11px] text-slate-400 mt-0.5">
-                Try chatting with the bot on Telegram, opening Buyer Chat, or running an MCP tool in Claude.
-              </p>
+            <div className="text-center py-12 px-4 bg-slate-50/60 rounded-2xl border border-dashed border-slate-200 space-y-3">
+              <div className="w-12 h-12 mx-auto rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-center justify-center text-xl">
+                {filterTabs.find((t) => t.id === channelFilter)?.icon || "🔍"}
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-slate-800">
+                  No {filterTabs.find((t) => t.id === channelFilter)?.label} activity recorded
+                </p>
+                <p className="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">
+                  {channelFilter === "AI_AGENTS" && "Execute autonomous tool purchases via Claude Desktop, Cursor IDE, Windsurf, ChatGPT / OpenAI Actions, or LangChain swarms."}
+                  {channelFilter === "NPCI" && "Send NPCI UAP-1.0 settlement intents via the headless buyer simulator or bilateral reverse auction."}
+                  {channelFilter === "TELEGRAM" && "Launch @agentic_merchant_store_bot on Telegram to send autonomous mobile shopping commands."}
+                  {channelFilter === "WEB" && "Open the Buyer Storefront (/chat or /checkout) to place retail customer orders."}
+                  {channelFilter === "BLOCKED" && "Guardian security invariants active. Zero prompt injections or margin breaches intercepted in this window."}
+                  {channelFilter === "ALL" && "No transactions recorded yet in the active ledger snapshot."}
+                </p>
+              </div>
+              {channelFilter !== "ALL" && (
+                <button
+                  onClick={() => setChannelFilter("ALL")}
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer shadow-sm"
+                >
+                  Show All Events ({receipts.length})
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -1138,7 +1221,7 @@ export default function MerchantDashboardPage() {
             <span>•</span>
             <span>Approval Rate: <strong className="text-emerald-700 font-mono">{receipts.length > 0 ? ((approvedCount / receipts.length) * 100).toFixed(0) : 100}%</strong></span>
             <span>•</span>
-            <span>Channels Connected: <strong className="text-indigo-600 font-mono">4 Omnichannel Ingresses</strong></span>
+            <span>Channels Connected: <strong className="text-indigo-600 font-mono">8 Omnichannel Ingresses</strong></span>
           </div>
           <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
