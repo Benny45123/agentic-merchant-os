@@ -68,7 +68,12 @@ class RazorpayAdapter:
                 )
             except Exception as e:
                 logger.error(f"Razorpay order creation failed with SDK: {e}")
-                pass
+                if settings.ENV == "production":
+                    raise RuntimeError(f"Payment service error: Razorpay order creation failed: {e}")
+
+        # In production, require live Razorpay SDK connection — disallow unisolated simulation
+        if settings.ENV == "production":
+            raise RuntimeError("Payment rail error: Live Razorpay credentials required in production environment")
 
         # Deterministic test-mode order creation for offline development & tests
         order_id = f"order_test_{hashlib.sha256(receipt_id.encode('utf-8')).hexdigest()[:16]}"

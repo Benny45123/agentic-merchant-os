@@ -52,6 +52,12 @@ async def verify_payment(
     order = result.scalar_one_or_none()
 
     if not order:
+        if get_settings().ENV == "production":
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Order not found. Payment verification strictly requires a pre-existing verified order in production.",
+            )
+
         from app.models.decision import GuardianDecision
         from app.core.enums import DecisionType
         from app.core.base import generate_uuid
@@ -349,7 +355,10 @@ async def _resolve_or_synthesize_order(
             if order:
                 return order
 
-        # Synthesize order for this verified receipt
+        # Synthesize order for this verified receipt (local/test only)
+        if get_settings().ENV == "production":
+            return None
+
         from app.models.buyer import Buyer
         buyer_id = rcpt.buyer_id or "b_001"
         b_stmt = select(Buyer).where(Buyer.buyer_id == buyer_id)

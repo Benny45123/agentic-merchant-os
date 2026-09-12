@@ -334,7 +334,7 @@ async def evaluate_transaction_intent(
             intent_id=intent_req.intent_id,
         )
 
-        _, _, ap2_meta = verify_ap2_mandate_chain(
+        is_valid_ap2, ap2_reason, ap2_meta = verify_ap2_mandate_chain(
             open_mandate_jwt=open_jwt,
             closed_mandate_jwt=closed_jwt,
             expected_items=cart_items_for_ap2,
@@ -345,24 +345,28 @@ async def evaluate_transaction_intent(
 
         checks.append(GuardianCheckSchema(
             name="ap2.open_mandate_signature",
-            passed=True,
+            passed="open_mandate_signature" in ap2_meta and ap2_meta["open_mandate_signature"] == "VALID",
             detail=f"User ES256 Signature Verified (JTI: {ap2_meta.get('open_jti', 'active')})",
         ))
         checks.append(GuardianCheckSchema(
             name="ap2.closed_mandate_signature",
-            passed=True,
+            passed="closed_mandate_signature" in ap2_meta and ap2_meta["closed_mandate_signature"] == "VALID",
             detail=f"Agent ES256 Signature Verified (JTI: {ap2_meta.get('closed_jti', 'bound')})",
         ))
         checks.append(GuardianCheckSchema(
             name="ap2.cart_digest_verified",
-            passed=True,
-            detail=f"Canonical SHA-256 Cart Digest: {ap2_meta.get('cart_digest', '')[:16]}... (MATCH)",
+            passed="cart_digest_verified" in ap2_meta and ap2_meta["cart_digest_verified"] == "VALID",
+            detail=f"Canonical SHA-256 Cart Digest: {ap2_meta.get('cart_digest', '')[:16]}... ({ap2_meta.get('cart_digest_verified', 'VALID')})",
         ))
         checks.append(GuardianCheckSchema(
             name="ap2.chain_linkage_verified",
-            passed=True,
-            detail="Google AP2 ES256 Delegation Chain Verified",
+            passed="chain_linkage" in ap2_meta and ap2_meta["chain_linkage"] == "VALID",
+            detail=f"Parent-Child Chain Linkage: {ap2_meta.get('chain_linkage', 'VALID')}",
         ))
+
+        if not is_valid_ap2:
+            is_blocked = True
+            block_reasons.append(f"Google AP2 Cryptographic Violation: {ap2_reason}")
 
     # --------------------------------------------------------------------------
     # 4. Policy Engine Check (Pure Function)
