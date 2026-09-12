@@ -222,6 +222,23 @@ async def conversational_chat_node(state: CommerceGraphState, session: AsyncSess
     """
     Node: Handles conversational shopping via Resilient Multi-Provider Pool (Groq/Gemini/OpenRouter).
     """
+    from app.security.classifier import scan_content
+    scan_res = scan_content(state["message"])
+    if scan_res.flagged:
+        quarantine_reply = (
+            "🛡️ **Security Intercept**: Your input was flagged by Agentic Merchant OS Content Security Scanner "
+            f"(matched patterns: `{', '.join(scan_res.matched_categories)}`).\n\n"
+            "Agentic Merchant OS strictly enforces deterministic security boundaries: prompt injection cannot "
+            "override authoritative catalog pricing, tamper with buyer mandates, or bypass Commerce Guardian authorization."
+        )
+        history = state.get("history", [])
+        history.append({"role": "user", "content": state["message"]})
+        history.append({"role": "assistant", "content": quarantine_reply})
+        return {
+            "reply": quarantine_reply,
+            "history": history,
+        }
+
     ai_provider = get_ai_provider()
     history = state.get("history", [])
     history.append({"role": "user", "content": state["message"]})

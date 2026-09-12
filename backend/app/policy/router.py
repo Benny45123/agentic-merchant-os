@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.auth import CurrentUser, get_current_user, get_optional_user
+from app.core.auth import CurrentUser, get_current_user, get_optional_user, verify_merchant_admin
 from app.core.db import get_session
 from app.policy.schemas import MerchantPolicySchema, MerchantPolicyUpdate
 from app.policy.service import get_active_policy, update_policy
@@ -31,9 +31,9 @@ async def put_merchant_policy(
     data: MerchantPolicyUpdate,
     merchant_id: Optional[str] = Query(None, description="Merchant ID if not in token"),
     session: AsyncSession = Depends(get_session),
-    current_user: Optional[CurrentUser] = Depends(get_optional_user),
+    current_user: CurrentUser = Depends(verify_merchant_admin),
 ):
-    """Create a new version of the merchant policy."""
-    target_merchant_id = current_user.sub if current_user and current_user.is_merchant else (merchant_id or "m_001")
+    """Create a new version of the merchant policy (Authorized Merchant only)."""
+    target_merchant_id = current_user.sub if current_user.sub != "m_001" and current_user.sub else (merchant_id or "m_001")
     new_policy = await update_policy(target_merchant_id, data, session)
     return MerchantPolicySchema.model_validate(new_policy)

@@ -13,7 +13,7 @@ from app.campaign.service import (
     get_campaign_status,
     propose_campaign,
 )
-from app.core.auth import CurrentUser, get_current_user, get_optional_user
+from app.core.auth import CurrentUser, get_current_user, get_optional_user, verify_merchant_admin
 from app.core.db import get_session
 
 router = APIRouter(prefix="/campaign", tags=["Campaign Orchestrator"])
@@ -23,7 +23,7 @@ router = APIRouter(prefix="/campaign", tags=["Campaign Orchestrator"])
 async def propose_new_campaign(
     body: CampaignProposeRequest,
     session: AsyncSession = Depends(get_session),
-    current_user: Optional[CurrentUser] = Depends(get_optional_user),
+    current_user: CurrentUser = Depends(verify_merchant_admin),
 ):
     """
     Merchant states revenue objective in natural language.
@@ -43,7 +43,7 @@ async def propose_new_campaign(
 async def activate_approved_campaign(
     proposal_id: str,
     session: AsyncSession = Depends(get_session),
-    current_user: Optional[CurrentUser] = Depends(get_optional_user),
+    current_user: CurrentUser = Depends(verify_merchant_admin),
 ):
     """
     Activates an approved or confirmed campaign proposal.

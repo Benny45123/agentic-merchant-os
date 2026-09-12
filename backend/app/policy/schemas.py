@@ -18,8 +18,8 @@ class MerchantPolicySchema(BaseModel):
 
 
 class MerchantPolicyUpdate(BaseModel):
-    maximum_discount_pct: int = Field(ge=0, le=100)
-    minimum_margin_pct: int = Field(ge=0, le=100)
+    maximum_discount_pct: int = Field(ge=0, le=70, description="Discount ceiling capped at 70% to prevent financial leakage")
+    minimum_margin_pct: int = Field(ge=10, le=100, description="Minimum margin floor must be at least 10% (Rule 6 invariant)")
     maximum_order_value: int = Field(gt=0)
     allowed_products_for_discount: Optional[List[str]] = None
     minimum_stock_to_sell: int = Field(ge=0)

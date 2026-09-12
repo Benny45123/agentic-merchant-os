@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     )
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_SECONDS: int = 86400 * 7  # 7 days
+    MERCHANT_ADMIN_KEY: str = Field(
+        default="amos_merchant_admin_secret_2026",
+        description="Internal admin key for securing merchant mutations without UI friction"
+    )
 
     # Telegram Bot Gateway
     TELEGRAM_BOT_TOKEN: Optional[str] = Field(

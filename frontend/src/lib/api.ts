@@ -15,6 +15,7 @@ export async function fetchApi<T>(endpoint: string, options: RequestInit = {}): 
   const headers = {
     "Accept": "application/json",
     "Content-Type": "application/json",
+    "x-merchant-key": process.env.NEXT_PUBLIC_MERCHANT_ADMIN_KEY || "amos_merchant_admin_secret_2026",
     ...(options.headers || {}),
   };
 

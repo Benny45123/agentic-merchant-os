@@ -70,21 +70,61 @@ async def lifespan(app: FastAPI):
     yield
 
 
+import time
+from collections import defaultdict
+from fastapi import Request
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+from app.core.config import get_settings
+
+settings = get_settings()
+is_production = settings.ENV == "production"
+
 app = FastAPI(
     title="Agentic Merchant OS API",
     description="Deterministic Guardian and AI Agentic Commerce Backend (Razorpay Buildathon Track 01)",
     version="1.0.0",
+    docs_url=None if is_production else "/docs",
+    redoc_url=None if is_production else "/redoc",
+    openapi_url=None if is_production else "/openapi.json",
     lifespan=lifespan,
 )
 
+# Sliding window rate limiter: 120 reqs/minute per client IP to prevent DoS/brute-force
+_rate_limit_window = defaultdict(list)
+RATE_LIMIT_MAX_REQUESTS = 120
+RATE_LIMIT_WINDOW_SECONDS = 60
 
-# CORS middleware for frontend communication
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        if request.url.path in ["/health", "/docs", "/openapi.json", "/redoc"]:
+            return await call_next(request)
+
+        client_ip = request.client.host if request.client else "unknown"
+        now = time.time()
+        
+        timestamps = _rate_limit_window[client_ip]
+        _rate_limit_window[client_ip] = [ts for ts in timestamps if now - ts < RATE_LIMIT_WINDOW_SECONDS]
+        
+        if len(_rate_limit_window[client_ip]) >= RATE_LIMIT_MAX_REQUESTS:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many requests. Rate limit exceeded (120 req/min). Please try again shortly."},
+            )
+            
+        _rate_limit_window[client_ip].append(now)
+        return await call_next(request)
+
+app.add_middleware(RateLimitMiddleware)
+
+# Secure CORS middleware: explicitly allow local development & verified deployment domains
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|32-236-161-117\.sslip\.io|.*\.sslip\.io)(:\d+)?",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Mount all domain routers

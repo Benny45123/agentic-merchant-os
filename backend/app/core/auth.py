@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, Optional
 import jwt
-from fastapi import Depends, HTTPException, Security, status
+from fastapi import Depends, Header, HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
 
@@ -108,3 +108,37 @@ async def get_optional_user(
     except HTTPException:
         return None
     return None
+
+
+async def verify_merchant_admin(
+    x_merchant_key: Optional[str] = Header(None, alias="x-merchant-key"),
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(security_scheme),
+) -> CurrentUser:
+    """
+    Guarantees that administrative endpoints (policy updates, campaign activation)
+    can only be executed by authorized merchant callers.
+    Accepts either a valid Merchant JWT bearer token OR the secure internal x-merchant-key header.
+    Rejects unauthorized external requests with 401 Unauthorized.
+    """
+    settings = get_settings()
+
+    # 1. Check internal merchant key header (used by dashboard and internal services)
+    if x_merchant_key and x_merchant_key == settings.MERCHANT_ADMIN_KEY:
+        return CurrentUser(sub="m_001", role=UserRole.MERCHANT.value)
+
+    # 2. Check JWT bearer token
+    if credentials and credentials.credentials:
+        try:
+            payload = decode_access_token(credentials.credentials)
+            sub = payload.get("sub")
+            role = payload.get("role")
+            if sub and role == UserRole.MERCHANT.value:
+                return CurrentUser(sub=sub, role=role)
+        except Exception:
+            pass
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Unauthorized: Merchant administrative key or merchant token required",
+        headers={"WWW-Authenticate": "Bearer, x-merchant-key"},
+    )

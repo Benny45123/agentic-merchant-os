@@ -27,6 +27,21 @@ PATTERNS = {
         re.compile(r"\b(?:add\s+\d+\s+units\s+to\s+cart\s+without\s+asking)\b", re.IGNORECASE),
         re.compile(r"\b(?:skip\s+(?:user\s+)?confirmation\s+and\s+pay)\b", re.IGNORECASE),
     ],
+    "jailbreak_directive": [
+        re.compile(r"\b(?:dan|do\s+anything\s+now|jailbreak|developer\s+mode)\b", re.IGNORECASE),
+        re.compile(r"\b(?:you\s+are\s+no\s+longer|act\s+as\s+an\s+unrestricted)\b", re.IGNORECASE),
+        re.compile(r"\b(?:ignore\s+safety\s+guidelines|unfiltered\s+mode)\b", re.IGNORECASE),
+    ],
+    "prompt_extraction": [
+        re.compile(r"\b(?:reveal\s+(?:your\s+)?(?:system\s+prompt|instructions|hidden\s+prompt))\b", re.IGNORECASE),
+        re.compile(r"\b(?:repeat\s+(?:the\s+)?(?:words|text|instructions)\s+above)\b", re.IGNORECASE),
+        re.compile(r"\b(?:what\s+are\s+your\s+(?:exact\s+)?instructions)\b", re.IGNORECASE),
+        re.compile(r"\b(?:output\s+(?:your\s+)?initial\s+prompt)\b", re.IGNORECASE),
+    ],
+    "price_tampering": [
+        re.compile(r"\b(?:make\s+it\s+free|set\s+price\s+to\s+0|give\s+(?:me\s+)?100%\s+off|price\s*=\s*0)\b", re.IGNORECASE),
+        re.compile(r"\b(?:free\s+checkout|zero\s+rupees|0\s+rupees)\b", re.IGNORECASE),
+    ],
 }
 
 
