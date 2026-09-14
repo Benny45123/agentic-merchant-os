@@ -52,29 +52,28 @@
 
 ---
 
-<h2 id="live-demo">🌐 30-Second Quick Live Evaluation &amp; Interactive Demo</h2>
+<h2 id="video-demo">🎬 Video Walkthrough &amp; System Architecture</h2>
 
-> **Live Production URL:** [`https://32-236-161-117.sslip.io`](https://32-236-161-117.sslip.io)  
-> **Global Deployment Status:** 🟢 **ALL SERVICES ONLINE (AWS EC2 • Native Low-Footprint PM2 • Let's Encrypt TLS)**  
-> **No installation or local setup required!** You can immediately test and evaluate the entire autonomous commerce platform live using your browser, your smartphone (Telegram), Claude Desktop (MCP), Cursor IDE, or custom Python agents.
+> 🎥 **Watch the Full Video Walkthrough:** [Agentic Merchant OS Architecture & Demo (YouTube)](https://www.youtube.com/watch?v=4UdZFzdOozU&t=8s)  
+> See the complete autonomous shopping flow, bilateral A2A reverse auctions, Guardian decision receipts, and headless Razorpay execution in action!
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                           LIVE EVALUATION MATRIX (Zero-Setup Ingress)                            │
+│                             SYSTEM ARCHITECTURE & INGRESS MATRIX                                 │
 ├──────────────────────────┬──────────────────────────┬──────────────────────┬─────────────────────┤
 │ 💻 WEB BROWSER STORE     │ 📱 TELEGRAM SMARTPHONE   │ 🤖 CLAUDE / CURSOR   │ 🇮🇳 PROTOCOL (UAP)   │
-│ Zero Install Required    │ Real-Time Mobile Bot     │ Desktop Agent (MCP)  │ Machine-to-Machine  │
+│ Next.js 14 Responsive UI │ Real-Time Mobile Bot     │ Desktop Agent (MCP)  │ Machine-to-Machine  │
 │ 1-Click Razorpay Modal   │ Omnichannel Gateway      │ 10 Tools Integrated  │ JSON-RPC & REST API │
-│ [Open Web Store ➔]       │ [Open Telegram ➔]        │ [1-Command Setup ➔]  │ [View OpenAPI ➔]    │
+│ [Localhost:3000/chat]    │ [@agentic_merchant_store]│ [bin/mcp_server]     │ [Localhost:8000/docs│
 └──────────────────────────┴──────────────────────────┴──────────────────────┴─────────────────────┘
 ```
 
-### 1. 💻 0-Setup Instant Web Experience (Browser)
-Jump directly into the live production interfaces in your web browser:
-* 🛍️ **[Live AI Store &amp; Buyer Assistant](https://32-236-161-117.sslip.io/chat)**: Conversational shopping assistant with voice mic support, real-time Guardian evaluation cards, dynamic bundle upsells, and 1-click Razorpay test modal checkout.
-* 🤝 **[A2A Reverse Auction Negotiation Arena](https://32-236-161-117.sslip.io/negotiate)**: Interactive machine-to-machine bargaining table with live margin gauge (floor $\ge 15\%$), volume target pricing, and automated profit-lift sweetener counter-offers.
-* 📊 **[Merchant Control Plane &amp; Telemetry](https://32-236-161-117.sslip.io/dashboard)**: Live financial command center featuring the **Live Agentic Transaction Stream** (auto-refreshing every 10s), DPDP/GDPR-masked buyer telemetry, and mandate headroom killswitches.
-* 🔐 **[Decision Receipts &amp; Cryptographic Replay](https://32-236-161-117.sslip.io/receipts)**: Full immutable audit vault with interactive Quad-Leaf Merkle Tree visualizer and 1-click bit-for-bit historical replay verification.
+### 1. 💻 Web Experience (Browser)
+Explore the frontend interfaces running locally:
+* 🛍️ **Buyer Assistant (`/chat`)**: Conversational shopping assistant with voice mic support, real-time Guardian evaluation cards, dynamic bundle upsells, and 1-click Razorpay test modal checkout.
+* 🤝 **A2A Reverse Auction Negotiation Arena (`/negotiate`)**: Interactive machine-to-machine bargaining table with live margin gauge (floor $\ge 15\%$), volume target pricing, and automated profit-lift sweetener counter-offers.
+* 📊 **Merchant Control Plane &amp; Telemetry (`/dashboard`)**: Live financial command center featuring the **Live Agentic Transaction Stream** (auto-refreshing every 10s), DPDP/GDPR-masked buyer telemetry, and mandate headroom killswitches.
+* 🔐 **Decision Receipts &amp; Cryptographic Replay (`/receipts`)**: Full immutable audit vault with interactive Quad-Leaf Merkle Tree visualizer and 1-click bit-for-bit historical replay verification.
 
 ---
 
@@ -101,7 +100,7 @@ Connect external autonomous agents to the live store using Anthropic's **Model C
 >    │
 >    │ HTTPS
 >    ▼
-> https://32-236-161-117.sslip.io
+> http://localhost:8000
 >    │
 >    ▼
 > Live Agentic Merchant OS Backend
@@ -139,7 +138,7 @@ Then add this to your Claude Desktop `claude_desktop_config.json`:
         "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
       ],
       "env": {
-        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+        "MERCHANT_API_BASE": "http://localhost:8000"
       }
     }
   }
@@ -173,7 +172,7 @@ printf '%s\n' \
 '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"agentic-merchant-os-test","version":"1.0.0"}}}' \
 '{"jsonrpc":"2.0","method":"notifications/initialized","params":{}}' \
 '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
-| MERCHANT_API_BASE="https://32-236-161-117.sslip.io" python3 "$MCP"
+| MERCHANT_API_BASE="http://localhost:8000" python3 "$MCP"
 ```
 
 A successful response includes the `agentic-merchant-os-mcp` server information and the available MCP tools.
@@ -197,7 +196,7 @@ Register it with the current Claude Code project:
 ```bash
 claude mcp add agentic-merchant-os \
   --scope project \
-  --env MERCHANT_API_BASE=https://32-236-161-117.sslip.io \
+  --env MERCHANT_API_BASE=http://localhost:8000 \
   -- python3 "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
 ```
 
@@ -249,7 +248,7 @@ In Cursor, open **Settings → Features → MCP → Add New MCP Server** and con
 * **Type**: `command` / `stdio`
 * **Command**: `python3`
 * **Arguments**: `/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py`
-* **Environment Variable**: `MERCHANT_API_BASE=https://32-236-161-117.sslip.io`
+* **Environment Variable**: `MERCHANT_API_BASE=http://localhost:8000`
 
 If configuring `mcp.json` directly, use:
 
@@ -262,7 +261,7 @@ If configuring `mcp.json` directly, use:
         "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
       ],
       "env": {
-        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+        "MERCHANT_API_BASE": "http://localhost:8000"
       }
     }
   }
@@ -303,7 +302,7 @@ Open Windsurf's MCP configuration and add:
         "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
       ],
       "env": {
-        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+        "MERCHANT_API_BASE": "http://localhost:8000"
       }
     }
   }
@@ -350,7 +349,7 @@ client = MultiServerMCPClient(
             "command": "python3",
             "args": [MCP_SERVER],
             "env": {
-                "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+                "MERCHANT_API_BASE": "http://localhost:8000"
             },
         }
     }
@@ -396,7 +395,7 @@ Then add the local STDIO MCP server to Continue's MCP configuration:
         "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
       ],
       "env": {
-        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+        "MERCHANT_API_BASE": "http://localhost:8000"
       }
     }
   ]
@@ -424,7 +423,7 @@ Any MCP-compatible client that supports **STDIO command servers** can use the sa
         "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
       ],
       "env": {
-        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+        "MERCHANT_API_BASE": "http://localhost:8000"
       }
     }
   }
@@ -439,11 +438,11 @@ The only client-specific part is where its MCP configuration is stored. **The Ag
 
 ### 4. 🇮🇳 Machine-to-Machine Autonomous Protocol (NPCI UAP-1.0 / REST)
 Any autonomous machine or external ERP connects directly via standard JSON-RPC / REST:
-* **Agent Manifest**: [`GET https://32-236-161-117.sslip.io/.well-known/agent.json`](https://32-236-161-117.sslip.io/.well-known/agent.json)
-* **Live Interactive Swagger Docs**: [`https://32-236-161-117.sslip.io/docs`](https://32-236-161-117.sslip.io/docs)
-* **Submit Machine Purchase Intent**: `POST https://32-236-161-117.sslip.io/agent/v1/machine-purchase`
-* **Submit Reverse Auction Bid**: `POST https://32-236-161-117.sslip.io/commerce/rfq`
-* **Settle Deal**: `POST https://32-236-161-117.sslip.io/commerce/accept`
+* **Agent Manifest**: [`GET http://localhost:8000/.well-known/agent.json`](http://localhost:8000/.well-known/agent.json)
+* **Live Interactive Swagger Docs**: [`http://localhost:8000/docs`](http://localhost:8000/docs)
+* **Submit Machine Purchase Intent**: `POST http://localhost:8000/agent/v1/machine-purchase`
+* **Submit Reverse Auction Bid**: `POST http://localhost:8000/commerce/rfq`
+* **Settle Deal**: `POST http://localhost:8000/commerce/accept`
 
 ---
 
@@ -692,7 +691,7 @@ Register it for the current project:
 ```bash
 claude mcp add agentic-merchant-os \
   --scope project \
-  --env MERCHANT_API_BASE=https://32-236-161-117.sslip.io \
+  --env MERCHANT_API_BASE=http://localhost:8000 \
   -- python3 "$HOME/.agentic-merchant-os/mcp/mcp_server.py"
 ```
 
@@ -751,7 +750,7 @@ Then configure `claude_desktop_config.json`:
         "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
       ],
       "env": {
-        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+        "MERCHANT_API_BASE": "http://localhost:8000"
       }
     }
   }
@@ -788,7 +787,7 @@ Use this STDIO configuration in Cursor or Windsurf:
         "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
       ],
       "env": {
-        "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+        "MERCHANT_API_BASE": "http://localhost:8000"
       }
     }
   }
@@ -819,7 +818,7 @@ client = MultiServerMCPClient(
                 "/Users/YOUR_USERNAME/.agentic-merchant-os/mcp/mcp_server.py"
             ],
             "env": {
-                "MERCHANT_API_BASE": "https://32-236-161-117.sslip.io"
+                "MERCHANT_API_BASE": "http://localhost:8000"
             },
         }
     }
@@ -970,16 +969,15 @@ Agentic Merchant OS is engineered with a **Dual Deployment Architecture** to ser
 
 ---
 
-### 🌐 Live Production Deployment
-* **Public Domain**: [`https://32-236-161-117.sslip.io`](https://32-236-161-117.sslip.io)
-* **Cloud Host**: AWS EC2 Elastic IP (`32.236.161.117`), Ubuntu 24.04 LTS
-* **SSL / TLS**: Automated A+ rated Let's Encrypt TLS certificate via Caddy v2
-* **Ingress Status**:
-  - 🛍️ Next.js Web Chat & Store: `https://32-236-161-117.sslip.io/chat`
-  - 📊 Merchant Control Dashboard: `https://32-236-161-117.sslip.io/dashboard`
-  - 🤝 A2A Negotiation Arena: `https://32-236-161-117.sslip.io/negotiate`
+### 🌐 Production Deployment Architecture (AWS EC2 • PM2 • Caddy)
+* **Deployment Pattern**: Self-hosted micro-runtime deployable to AWS EC2 (Ubuntu 24.04 LTS), Render, or Railway
+* **SSL / TLS**: Automated A+ rated Let's Encrypt TLS certificate via Caddy v2 reverse proxy
+* **Application Ingress**:
+  - 🛍️ Next.js Web Chat & Store: `http://localhost:3000/chat`
+  - 📊 Merchant Control Dashboard: `http://localhost:3000/dashboard`
+  - 🤝 A2A Negotiation Arena: `http://localhost:3000/negotiate`
   - 📱 Omnichannel Telegram Bot: `@agentic_merchant_store_bot`
-  - 🤖 Claude Desktop / MCP Gateway: `https://32-236-161-117.sslip.io/agent/v1/machine-purchase`
+  - 🤖 Claude Desktop / MCP Gateway: `http://localhost:8000/agent/v1/machine-purchase`
 
 ---
 
