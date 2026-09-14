@@ -82,7 +82,7 @@ is_production = settings.ENV == "production"
 
 app = FastAPI(
     title="Agentic Merchant OS API",
-    description="Deterministic Guardian and AI Agentic Commerce Backend (Razorpay Buildathon Track 01)",
+    description="Deterministic Guardian and AI Agentic Commerce Backend with Razorpay Integration",
     version="1.0.0",
     docs_url=None if is_production else "/docs",
     redoc_url=None if is_production else "/redoc",

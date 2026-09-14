@@ -4,7 +4,7 @@
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0C2340,50:4285F4,100:D97706&height=220&section=header&text=Agentic%20Merchant%20OS&fontSize=50&fontColor=ffffff&animation=fadeIn&fontAlignY=35&desc=A%20Cryptographically%20Bounded%20Financial%20Runtime%20for%20AI-Native%20Commerce&descAlignY=55&descSize=18" width="100%"/>
 
 <a href="https://git.io/typing-svg">
-  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=20&duration=2800&pause=900&color=4285F4&center=true&vCenter=true&width=800&lines=Zero+LLM+ever+touches+a+rupee.;22+deterministic+guardrails+in+%3C50ms.;Google+AP2+mandates+%2B+NPCI+UAP-1.0+%2B+MCP.;Built+for+the+Razorpay+AI+Buildathon+2026." alt="Typing SVG" />
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=20&duration=2800&pause=900&color=4285F4&center=true&vCenter=true&width=800&lines=Zero+LLM+ever+touches+a+rupee.;22+deterministic+guardrails+in+%3C50ms.;Google+AP2+mandates+%2B+NPCI+UAP-1.0+%2B+MCP.;Autonomous+Agentic+Commerce+%2B+Policy+Guardian." alt="Typing SVG" />
 </a>
 
 <br/>
@@ -29,7 +29,7 @@
 <h1 id="top">Agentic Merchant OS</h1>
 
 > **A Cryptographically Bounded Financial Operating System for AI-Native Commerce.**  
-> Built for the **Razorpay AI Buildathon 2026 — Track 01: AI Growth & Agentic Commerce**.
+> An open-source autonomous agentic commerce runtime and deterministic financial policy guardian separating non-deterministic AI negotiation from payment execution.
 
 | 🧪 71/71 Pytests Passing | 🎬 11/11 E2E Scenarios Green | 🛡️ 22 Invariant Guardrails | ⚡ &lt;50ms Decision Latency |
 | :---: | :---: | :---: | :---: |
@@ -1430,9 +1430,9 @@ flowchart TB
 
 ---
 
-<h2 id="hackathon-track">📜 Hackathon Track</h2>
-
-Built for the **Razorpay AI Buildathon (Track 01: AI Growth & Agentic Commerce)**. All payments and tokens operate strictly in Razorpay Test Mode.
+<h2 id="core-mission">🎯 Core Architecture & Payment Rails</h2>
+ 
+Agentic Merchant OS (AMOS) is an open-source autonomous agentic commerce runtime and deterministic policy guardian. It enables AI agents to discover, negotiate, and execute purchases autonomously without giving probabilistic LLMs unconstrained access to money or merchant inventory. All payments and recurring tokens operate strictly in Razorpay Test Mode sandbox.
 
 ---
 

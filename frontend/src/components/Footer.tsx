@@ -96,7 +96,7 @@ export default function Footer() {
 
         <div className="pt-6 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
           <div>
-            © {new Date().getFullYear()} Agentic Merchant OS. Razorpay Buildathon Track 01 Submission.
+            © {new Date().getFullYear()} Agentic Merchant OS. Autonomous AI Commerce & Deterministic Policy Guardian.
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span>Deterministic Sandbox: <strong className="text-slate-700">m_001</strong></span>
